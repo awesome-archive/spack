@@ -1,23 +1,23 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class EverytraceExample(CMakePackage):
     """Get stack trace EVERY time a program exits."""
 
     homepage = "https://github.com/citibeth/everytrace-example"
-    git      = "https://github.com/citibeth/everytrace-example.git"
+    git = "https://github.com/citibeth/everytrace-example.git"
 
-    version('develop', branch='develop')
+    license("GPL-3.0-or-later")
 
-    depends_on('everytrace+mpi+fortran')
+    version("develop", branch="develop")
+
+    depends_on("cxx", type="build")  # generated
+
+    depends_on("everytrace+mpi+fortran")
 
     # Currently the only MPI this everytrace works with.
-    depends_on('openmpi')
-
-    def setup_environment(self, spack_env, run_env):
-        run_env.prepend_path('PATH', join_path(self.prefix, 'bin'))
+    depends_on("openmpi")

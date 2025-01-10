@@ -1,17 +1,18 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PerlTextDiff(PerlPackage):
     """Provides a basic set of services akin to the GNU diff utility."""
 
-    homepage = "http://search.cpan.org/~neilb/Text-Diff-1.45/lib/Text/Diff.pm"
-    url      = "http://search.cpan.org/CPAN/authors/id/N/NE/NEILB/Text-Diff-1.45.tar.gz"
+    homepage = "https://metacpan.org/pod/Text::Diff"
+    url = "http://search.cpan.org/CPAN/authors/id/N/NE/NEILB/Text-Diff-1.45.tar.gz"
 
-    version('1.45', 'edf57b6189f7651a6be454062a4e6d9c')
+    license("GPL-1.0-or-later OR Artistic-1.0-Perl")
 
-    depends_on('perl-algorithm-diff', type=('build', 'run'))
+    version("1.45", sha256="e8baa07b1b3f53e00af3636898bbf73aec9a0ff38f94536ede1dbe96ef086f04")
+
+    depends_on("perl-algorithm-diff", type=("build", "run"))

@@ -1,19 +1,21 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PerlCairo(PerlPackage):
     """Perl interface to the cairo 2d vector graphics library"""
 
-    homepage = "http://search.cpan.org/~xaoc/Cairo/lib/Cairo.pm"
-    url      = "http://search.cpan.org/CPAN/authors/id/X/XA/XAOC/Cairo-1.106.tar.gz"
+    homepage = "https://metacpan.org/pod/Cairo"
+    url = "http://search.cpan.org/CPAN/authors/id/X/XA/XAOC/Cairo-1.106.tar.gz"
 
-    version('1.106', '47ca0ae0f5b9bc4c16a27627ff48bd8b')
+    license("GPL-1.0-or-later OR Artistic-1.0-Perl")
 
-    depends_on('cairo')
-    depends_on('perl-extutils-depends')
-    depends_on('perl-extutils-pkgconfig')
+    version("1.109", sha256="8219736e401c2311da5f515775de43fd87e6384b504da36a192f2b217643077f")
+    version("1.106", sha256="e64803018bc7cba49e73e258547f5378cc4249797beafec524852140f49c45c4")
+
+    depends_on("cairo")
+    depends_on("perl-extutils-depends")
+    depends_on("perl-extutils-pkgconfig")

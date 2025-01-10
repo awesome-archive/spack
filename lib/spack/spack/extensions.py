@@ -1,20 +1,29 @@
-# Copyright 2013-2018 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Service functions and classes to implement the hooks
 for Spack's command extensions.
 """
+import glob
+import importlib
 import os
 import re
 import sys
 import types
+from pathlib import Path
+from typing import List
 
 import llnl.util.lang
-import llnl.util.tty as tty
-import spack.config
 
-extension_regexp = re.compile(r'spack-([\w]*)')
+import spack.config
+import spack.error
+import spack.util.path
+
+_extension_regexp = re.compile(r"spack-(\w[-\w]*)$")
+
+
+def _python_name(cmd_name):
+    return cmd_name.replace("-", "_")
 
 
 def extension_name(path):
@@ -24,15 +33,15 @@ def extension_name(path):
         path (str): path where the extension resides
 
     Returns:
-        The extension name or None if path doesn't match the format
-        for Spack's extension.
+        The extension name.
+
+    Raises:
+         ExtensionNamingError: if path does not match the expected format
+             for a Spack command extension.
     """
-    regexp_match = re.search(extension_regexp, os.path.basename(path))
+    regexp_match = re.search(_extension_regexp, os.path.basename(os.path.normpath(path)))
     if not regexp_match:
-        msg = "[FOLDER NAMING]"
-        msg += " {0} doesn't match the format for Spack's extensions"
-        tty.warn(msg.format(path))
-        return None
+        raise ExtensionNamingError(path)
     return regexp_match.group(1)
 
 
@@ -40,29 +49,45 @@ def load_command_extension(command, path):
     """Loads a command extension from the path passed as argument.
 
     Args:
-        command (str): name of the command
+        command (str): name of the command (contains ``-``, not ``_``).
         path (str): base path of the command extension
 
     Returns:
-        A valid module object if the command is found or None
+        A valid module if found and loadable; None if not found. Module
+    loading exceptions are passed through.
     """
-    extension = extension_name(path)
-    if not extension:
-        return None
+    extension = _python_name(extension_name(path))
 
     # Compute the name of the module we search, exit early if already imported
-    cmd_package = '{0}.{1}.cmd'.format(__name__, extension)
-    python_name = command.replace('-', '_')
-    module_name = '{0}.{1}'.format(cmd_package, python_name)
+    cmd_package = "{0}.{1}.cmd".format(__name__, extension)
+    python_name = _python_name(command)
+    module_name = "{0}.{1}".format(cmd_package, python_name)
     if module_name in sys.modules:
         return sys.modules[module_name]
 
+    # Compute the absolute path of the file to be loaded, along with the
+    # name of the python module where it will be stored
+    cmd_path = os.path.join(path, extension, "cmd", python_name + ".py")
+
+    # Short circuit if the command source file does not exist
+    if not os.path.exists(cmd_path):
+        return None
+
+    ensure_extension_loaded(extension, path=path)
+
+    module = importlib.import_module(module_name)
+    sys.modules[module_name] = module
+
+    return module
+
+
+def ensure_extension_loaded(extension, *, path):
     def ensure_package_creation(name):
-        package_name = '{0}.{1}'.format(__name__, name)
+        package_name = "{0}.{1}".format(__name__, name)
         if package_name in sys.modules:
             return
 
-        parts = [path] + name.split('.') + ['__init__.py']
+        parts = [path] + name.split(".") + ["__init__.py"]
         init_file = os.path.join(*parts)
         if os.path.exists(init_file):
             m = llnl.util.lang.load_module_from_file(package_name, init_file)
@@ -80,37 +105,74 @@ def load_command_extension(command, path):
     # Create a searchable package for both the root folder of the extension
     # and the subfolder containing the commands
     ensure_package_creation(extension)
-    ensure_package_creation(extension + '.cmd')
+    ensure_package_creation(extension + ".cmd")
 
-    # Compute the absolute path of the file to be loaded, along with the
-    # name of the python module where it will be stored
-    cmd_path = os.path.join(path, extension, 'cmd', command + '.py')
 
-    try:
-        # TODO: Upon removal of support for Python 2.6 substitute the call
-        # TODO: below with importlib.import_module(module_name)
-        module = llnl.util.lang.load_module_from_file(module_name, cmd_path)
-        sys.modules[module_name] = module
-    except (ImportError, IOError):
-        module = None
+def load_extension(name: str) -> str:
+    """Loads a single extension into the 'spack.extensions' package.
 
-    return module
+    Args:
+        name: name of the extension
+    """
+    extension_root = path_for_extension(name, paths=get_extension_paths())
+    ensure_extension_loaded(name, path=extension_root)
+    commands = glob.glob(
+        os.path.join(extension_root, extension_name(extension_root), "cmd", "*.py")
+    )
+    commands = [os.path.basename(x).rstrip(".py") for x in commands]
+    for command in commands:
+        load_command_extension(command, extension_root)
+    return extension_root
+
+
+def get_extension_paths():
+    """Return the list of canonicalized extension paths from config:extensions."""
+    extension_paths = spack.config.get("config:extensions") or []
+    extension_paths.extend(extension_paths_from_entry_points())
+    paths = [spack.util.path.canonicalize_path(p) for p in extension_paths]
+    return paths
+
+
+def extension_paths_from_entry_points() -> List[str]:
+    """Load extensions from a Python package's entry points.
+
+    A python package can register entry point metadata so that Spack can find
+    its extensions by adding the following to the project's pyproject.toml:
+
+    .. code-block:: toml
+
+       [project.entry-points."spack.extensions"]
+       baz = "baz:get_spack_extensions"
+
+    The function ``get_spack_extensions`` returns paths to the package's
+    spack extensions
+
+    """
+    extension_paths: List[str] = []
+    for entry_point in llnl.util.lang.get_entry_points(group="spack.extensions"):
+        hook = entry_point.load()
+        if callable(hook):
+            paths = hook() or []
+            if isinstance(paths, (Path, str)):
+                extension_paths.append(str(paths))
+            else:
+                extension_paths.extend(paths)
+    return extension_paths
 
 
 def get_command_paths():
     """Return the list of paths where to search for command files."""
     command_paths = []
-    extension_paths = spack.config.get('config:extensions') or []
+    extension_paths = get_extension_paths()
 
     for path in extension_paths:
-        extension = extension_name(path)
-        if extension:
-            command_paths.append(os.path.join(path, extension, 'cmd'))
+        extension = _python_name(extension_name(path))
+        command_paths.append(os.path.join(path, extension, "cmd"))
 
     return command_paths
 
 
-def path_for_extension(target_name, *paths):
+def path_for_extension(target_name: str, *, paths: List[str]) -> str:
     """Return the test root dir for a given extension.
 
     Args:
@@ -138,19 +200,27 @@ def get_module(cmd_name):
     """
     # If built-in failed the import search the extension
     # directories in order
-    extensions = spack.config.get('config:extensions') or []
+    extensions = get_extension_paths()
     for folder in extensions:
         module = load_command_extension(cmd_name, folder)
         if module:
             return module
-    else:
-        return None
+    return None
 
 
 def get_template_dirs():
     """Returns the list of directories where to search for templates
     in extensions.
     """
-    extension_dirs = spack.config.get('config:extensions') or []
-    extensions = [os.path.join(x, 'templates') for x in extension_dirs]
+    extension_dirs = get_extension_paths()
+    extensions = [os.path.join(x, "templates") for x in extension_dirs]
     return extensions
+
+
+class ExtensionNamingError(spack.error.SpackError):
+    """Exception class thrown when a configured extension does not follow
+    the expected naming convention.
+    """
+
+    def __init__(self, path):
+        super().__init__("{0} does not match the format for a Spack extension path.".format(path))

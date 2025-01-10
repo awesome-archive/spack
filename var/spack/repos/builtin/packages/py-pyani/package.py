@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyPyani(PythonPackage):
@@ -13,24 +12,26 @@ class PyPyani(PythonPackage):
     available, it takes advantage of multicore systems, and can integrate
     with SGE/OGE-type job schedulers for the sequence comparisons."""
 
-    homepage = "http://widdowquinn.github.io/pyani"
-    url      = "https://pypi.io/packages/source/p/pyani/pyani-0.2.7.tar.gz"
+    homepage = "https://widdowquinn.github.io/pyani"
+    pypi = "pyani/pyani-0.2.7.tar.gz"
 
-    version('0.2.7', '239ba630d375a81c35b7c60fb9bec6fa')
-    version('0.2.6', 'd5524b9a3c62c36063ed474ea95785c9')
+    license("MIT")
 
-    depends_on('python@3.5:')
-    depends_on('py-setuptools', type='build')
-    depends_on('py-matplotlib', type=('build', 'run'))
-    depends_on('py-seaborn',    type=('build', 'run'))
+    version("0.2.7", sha256="dbc6c71c46fbbfeced3f8237b84474221268b51170caf044bec8559987a7deb9")
+    version("0.2.6", sha256="e9d899bccfefaabe7bfa17d48eef9c713d321d2d15465f7328c8984807c3dd8d")
+
+    depends_on("python@3.5:")
+    depends_on("py-setuptools", type="build")
+    depends_on("py-matplotlib", type=("build", "run"))
+    depends_on("py-seaborn", type=("build", "run"))
 
     # Required for ANI analysis
-    depends_on('py-biopython',  type=('build', 'run'))
-    depends_on('py-pandas',     type=('build', 'run'))
-    depends_on('py-scipy',      type=('build', 'run'))
+    depends_on("py-biopython", type=("build", "run"))
+    depends_on("py-pandas", type=("build", "run"))
+    depends_on("py-scipy", type=("build", "run"))
 
     # Required for ANIb analysis
-    depends_on('blast-plus~python', type='run')
+    depends_on("blast-plus~python", type="run")
 
     # Required for ANIm analysis
-    depends_on('mummer', type='run')
+    depends_on("mummer", type="run")

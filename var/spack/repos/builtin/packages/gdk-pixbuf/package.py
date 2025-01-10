@@ -1,87 +1,92 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
-class GdkPixbuf(Package):
-    """The Gdk Pixbuf is a toolkit for image loading and pixel buffer
-       manipulation. It is used by GTK+ 2 and GTK+ 3 to load and
-       manipulate images. In the past it was distributed as part of
-       GTK+ 2 but it was split off into a separate package in
-       preparation for the change to GTK+ 3."""
+class GdkPixbuf(MesonPackage):
+    """The Gdk Pixbuf is a toolkit for image loading and pixel buffer manipulation. It is used by
+    GTK+ 2 and GTK+ 3 to load and manipulate images. In the past it was distributed as part of
+    GTK+ 2 but it was split off into a separate package in preparation for the change to GTK+ 3."""
 
-    homepage = "https://developer.gnome.org/gdk-pixbuf/"
-    url      = "https://ftp.acc.umu.se/pub/gnome/sources/gdk-pixbuf/2.38/gdk-pixbuf-2.38.0.tar.xz"
-    list_url = "https://ftp.acc.umu.se/pub/gnome/sources/gdk-pixbuf/"
+    homepage = "https://gitlab.gnome.org/GNOME/gdk-pixbuf"
+    git = "https://gitlab.gnome.org/GNOME/gdk-pixbuf"
+    url = "https://gitlab.gnome.org/GNOME/gdk-pixbuf/-/archive/2.40.0/gdk-pixbuf-2.40.0.tar.gz"
+
+    # Falling back to the gitlab source since the mirror here seems to be broken
+    # url = "https://ftp.acc.umu.se/pub/gnome/sources/gdk-pixbuf/2.40/gdk-pixbuf-2.40.0.tar.xz"
+    # list_url = "https://ftp.acc.umu.se/pub/gnome/sources/gdk-pixbuf/"
     list_depth = 1
 
-    version('2.38.0', sha256='dd50973c7757bcde15de6bcd3a6d462a445efd552604ae6435a0532fbbadae47')
-    version('2.31.2', '6be6bbc4f356d4b79ab4226860ab8523')
+    license("LGPL-2.1-or-later", checked_by="wdconinc")
 
-    depends_on('meson@0.46.0:', type='build', when='@2.37.92:')
-    depends_on('meson@0.45.0:', type='build', when='@2.37.0:')
-    depends_on('ninja', type='build', when='@2.37.0:')
-    depends_on('shared-mime-info', type='build', when='@2.36.8: platform=linux')
-    depends_on('shared-mime-info', type='build', when='@2.36.8: platform=cray')
-    depends_on('pkgconfig', type='build')
-    # Building the man pages requires libxslt and the Docbook stylesheets
-    depends_on('libxslt', type='build')
-    depends_on('docbook-xsl', type='build')
-    depends_on('gettext')
-    depends_on('glib@2.38.0:')
-    depends_on('jpeg')
-    depends_on('libpng')
-    depends_on('zlib')
-    depends_on('libtiff')
-    depends_on('gobject-introspection')
+    version("2.42.12", sha256="d41966831b3d291fcdfe31f683bea4b3f03241d591ddbe550b5db873af3da364")
+    # https://nvd.nist.gov/vuln/detail/CVE-2022-48622
+    version(
+        "2.42.10",
+        sha256="87a086c51d9705698b22bd598a795efaccf61e4db3a96f439dcb3cd90506dab8",
+        deprecated=True,
+    )
+    version(
+        "2.42.9",
+        sha256="226d950375907857b23c5946ae6d30128f08cd75f65f14b14334c7a9fb686e36",
+        deprecated=True,
+    )
+    version(
+        "2.42.6",
+        sha256="c4f3a84a04bc7c5f4fbd97dce7976ab648c60628f72ad4c7b79edce2bbdb494d",
+        deprecated=True,
+    )
+    version(
+        "2.42.2",
+        sha256="249b977279f761979104d7befbb5ee23f1661e29d19a36da5875f3a97952d13f",
+        deprecated=True,
+    )
 
-    # Replace the docbook stylesheet URL with the one that our
-    # docbook-xsl package uses/recognizes.
-    patch('docbook-cdn.patch')
+    depends_on("c", type="build")
+
+    variant("tiff", default=False, description="Enable TIFF support(partially broken)")
+    # Man page creation was getting docbook errors, see issue #18853
+    variant("man", default=False, description="Enable man page creation")
+
+    with default_args(type="build"):
+        depends_on("meson@0.55.3:")
+        depends_on("pkgconfig")
+        depends_on("libxslt", when="+man")
+        depends_on("docbook-xsl@1.79.2:", when="+man")
+
+    depends_on("shared-mime-info", when="platform=linux")
+    depends_on("gettext")
+    depends_on("glib@2.38.0:")
+    depends_on("jpeg")
+    depends_on("libpng")
+    depends_on("zlib-api")
+    depends_on("libtiff", when="+tiff")
+    depends_on("gobject-introspection")
+
+    # Replace the docbook stylesheet URL with the one that our docbook-xsl package uses/recognizes.
+    patch("docbook-cdn.patch", when="+man")
 
     def url_for_version(self, version):
         url = "https://ftp.acc.umu.se/pub/gnome/sources/gdk-pixbuf/{0}/gdk-pixbuf-{1}.tar.xz"
         return url.format(version.up_to(2), version)
 
-    def setup_dependent_environment(self, spack_env, run_env, dependent_spec):
-        spack_env.prepend_path("XDG_DATA_DIRS",
-                               self.prefix.share)
-        run_env.prepend_path("XDG_DATA_DIRS",
-                             self.prefix.share)
+    def setup_run_environment(self, env):
+        env.prepend_path("XDG_DATA_DIRS", self.prefix.share)
+        env.prepend_path("GI_TYPELIB_PATH", join_path(self.prefix.lib, "girepository-1.0"))
 
-    def install(self, spec, prefix):
-        with working_dir('spack-build', create=True):
-            meson('..', *std_meson_args)
-            ninja('-v')
-            if self.run_tests:
-                ninja('test')
-            ninja('install')
+    def setup_dependent_build_environment(self, env, dependent_spec):
+        env.prepend_path("XDG_DATA_DIRS", self.prefix.share)
+        env.prepend_path("GI_TYPELIB_PATH", join_path(self.prefix.lib, "girepository-1.0"))
 
-    def configure_args(self):
-        args = []
-        # disable building of gtk-doc files following #9771
-        args.append('--disable-gtk-doc-html')
-        true = which('true')
-        args.append('GTKDOC_CHECK={0}'.format(true))
-        args.append('GTKDOC_CHECK_PATH={0}'.format(true))
-        args.append('GTKDOC_MKPDF={0}'.format(true))
-        args.append('GTKDOC_REBASE={0}'.format(true))
+    def meson_args(self):
+        args = [f"-Dman={'true' if self.spec.satisfies('+man') else 'false'}"]
+        if self.spec.satisfies("@2.42.9:"):
+            args.append(f"-Dtests={'true' if self.run_tests else 'false'}")
         return args
 
-    @when('@:2.36')
-    def install(self, spec, prefix):
-        configure('--prefix={0}'.format(prefix), *self.configure_args())
-        make()
-        if self.run_tests:
-            make('check')
-        make('install')
-        if self.run_tests:
-            make('installcheck')
-
-    def setup_environment(self, spack_env, run_env):
+    def setup_build_environment(self, env):
         # The "post-install.sh" script uses gdk-pixbuf-query-loaders,
         # which was installed earlier.
-        spack_env.prepend_path('PATH', self.prefix.bin)
+        env.prepend_path("PATH", self.prefix.bin)

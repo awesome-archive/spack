@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class DealiiParameterGui(CMakePackage):
@@ -11,11 +10,15 @@ class DealiiParameterGui(CMakePackage):
     files."""
 
     homepage = "https://github.com/dealii/parameter_gui"
-    git      = "https://github.com/dealii/parameter_gui.git"
+    git = "https://github.com/dealii/parameter_gui.git"
 
-    version('develop', branch='master')
+    license("LGPL-2.1-or-later")
 
-    depends_on('qt')
+    version("develop", branch="master")
 
-    def setup_environment(self, spack_env, run_env):
-        run_env.set('PARAMETER_GUI_DIR', self.prefix)
+    depends_on("cxx", type="build")  # generated
+
+    depends_on("qt")
+
+    def setup_run_environment(self, env):
+        env.set("PARAMETER_GUI_DIR", self.prefix)

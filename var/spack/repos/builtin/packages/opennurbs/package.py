@@ -1,54 +1,53 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
-import glob
+
+from spack.build_systems import cmake, makefile
+from spack.package import *
 
 
-class Opennurbs(Package):
+class Opennurbs(CMakePackage, MakefilePackage):
     """OpenNURBS is an open-source NURBS-based geometric modeling library
     and toolset, with meshing and display / output functions.
     """
 
     homepage = "https://github.com/OpenNURBS/OpenNURBS"
-    git      = "https://github.com/OpenNURBS/OpenNURBS.git"
+    git = "https://github.com/OpenNURBS/OpenNURBS.git"
 
-    maintainers = ['jrood-nrel']
+    maintainers("jrood-nrel")
 
-    version('develop', branch='develop')
+    license("Zlib")
 
-    version('percept', '59163fd085a24c7a4c2170c70bb60fea',
-            url='https://github.com/PerceptTools/percept/raw/master/build-cmake/opennurbs-percept.tar.gz')
+    version("develop", branch="develop")
+    version(
+        "percept",
+        sha256="d12a8f14f0b27d286fb7a75ab3c4e300f77d1fbb028326d1c8d28e4641605538",
+        url="https://github.com/PerceptTools/percept/raw/master/build-cmake/opennurbs-percept.tar.gz",
+    )
 
-    variant('shared', default=True,
-            description="Build shared libraries")
+    depends_on("c", type="build")  # generated
+    depends_on("cxx", type="build")  # generated
 
-    # CMake installation method
-    def install(self, spec, prefix):
-        cmake_args = [
-            '-DBUILD_SHARED_LIBS:BOOL=%s' % (
-                'ON' if '+shared' in spec else 'OFF')
-        ]
+    build_system(
+        conditional("cmake", when="@1:"), conditional("makefile", when="@:0"), default="cmake"
+    )
 
-        cmake_args.extend(std_cmake_args)
+    variant("shared", default=True, description="Build shared libraries")
 
-        with working_dir('spack-build', create=True):
-            cmake('..', *cmake_args)
-            make()
-            make('install')
 
-    # Pre-cmake installation method
-    @when('@percept')
-    def install(self, spec, prefix):
-        make(parallel=False)
+class CMakeBuilder(cmake.CMakeBuilder):
+    def cmake_args(self):
+        return [self.define_from_variant("BUILD_SHARED_LIBS", "shared")]
 
-        # Install manually
+
+class MakefileBuilder(makefile.MakefileBuilder):
+
+    def build(self, pkg, spec, prefix):
+        make("RM=rm -f", "AR=ar cr", f"CC={spack_cc}", f"CCC={spack_cxx}", parallel=False)
+
+    def install(self, pkg, spec, prefix):
         mkdir(prefix.lib)
         mkdir(prefix.include)
-        install('libopenNURBS.a', prefix.lib)
-        install_tree('zlib', join_path(prefix.include, 'zlib'))
-        headers = glob.glob(join_path('.', '*.h'))
-        for h in headers:
-            install(h, prefix.include)
+        install("libopenNURBS.a", prefix.lib)
+        install("*.h", prefix.include)

@@ -1,13 +1,12 @@
-.. Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-   Spack Project Developers. See the top-level COPYRIGHT file for details.
+.. Copyright Spack Project Developers. See COPYRIGHT file for details.
 
    SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 .. _qmakepackage:
 
-------------
-QMakePackage
-------------
+-----
+QMake
+-----
 
 Much like Autotools and CMake, QMake is a build-script generator
 designed by the developers of Qt. In its simplest form, Spack's
@@ -25,11 +24,19 @@ QMake does not appear to have a standardized way of specifying
 the installation directory, so you may have to set environment
 variables or edit ``*.pro`` files to get things working properly.
 
+QMake packages will depend on the virtual ``qmake`` package which
+is provided by multiple versions of Qt: ``qt`` provides Qt up to
+Qt5, and ``qt-base`` provides Qt from version Qt6 onwards. This
+split was motivated by the desire to split the single Qt package
+into its components to allow for more fine-grained installation.
+To depend on a specific version, refer to the documentation on
+:ref:`virtual-dependencies`.
+
 ^^^^^^
 Phases
 ^^^^^^
 
-The ``QMakePackage`` base class comes with the following phases:
+The ``QMakeBuilder`` and ``QMakePackage`` base classes come with the following phases:
 
 #. ``qmake`` - generate Makefiles
 #. ``build`` - build the project
@@ -83,7 +90,7 @@ base class already contains:
 
 .. code-block:: python
 
-   depends_on('qt', type='build')
+   depends_on("qt", type="build")
 
 
 If you want to specify a particular version requirement, or need to
@@ -91,7 +98,7 @@ link to the ``qt`` libraries, you can override this in your package:
 
 .. code-block:: python
 
-   depends_on('qt@5.6.0:')
+   depends_on("qt@5.6.0:")
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Passing arguments to qmake
@@ -103,10 +110,23 @@ override the ``qmake_args`` method like so:
 .. code-block:: python
 
    def qmake_args(self):
-       return ['-recursive']
+       return ["-recursive"]
 
 
 This method can be used to pass flags as well as variables.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``*.pro`` file in a sub-directory
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If the ``*.pro`` file used to tell QMake how to build the package is
+found in a sub-directory, you can tell Spack to run all phases in this
+sub-directory by adding the following to the package:
+
+.. code-block:: python
+
+   build_directory = "src"
+
 
 ^^^^^^^^^^^^^^^^^^^^^^
 External documentation

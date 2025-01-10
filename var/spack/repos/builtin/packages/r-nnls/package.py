@@ -1,18 +1,20 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class RNnls(RPackage):
-    """An R interface to the Lawson-Hanson implementation of an
-    algorithm for non-negative least squares (NNLS). Also allows
-    the combination of non-negative and non-positive constraints."""
+    """The Lawson-Hanson algorithm for non-negative least squares (NNLS).
 
-    homepage = "https://cran.r-project.org/package=nnls"
-    url      = "https://cran.rstudio.com/src/contrib/nnls_1.4.tar.gz"
-    list_url = "https://cran.rstudio.com/src/contrib/Archive/nnls"
+    An R interface to the Lawson-Hanson implementation of an algorithm for
+    non-negative least squares (NNLS). Also allows the combination of
+    non-negative and non-positive constraints."""
 
-    version('1.4', 'cdb3640120f73e0ccb6079108e0ef361')
+    cran = "nnls"
+
+    license("GPL-2.0-or-later")
+
+    version("1.5", sha256="cd70feb286f86f6dead75da693a8f67c9bd3b91eb738e6e6ac659e3b8c7a3452")
+    version("1.4", sha256="0e5d77abae12bc50639d34354f96a8e079408c9d7138a360743b73bd7bce6c1f")

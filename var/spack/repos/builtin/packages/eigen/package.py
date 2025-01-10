@@ -1,56 +1,115 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+
+from spack.package import *
 
 
-class Eigen(CMakePackage):
+class Eigen(CMakePackage, ROCmPackage):
     """Eigen is a C++ template library for linear algebra matrices,
     vectors, numerical solvers, and related algorithms.
     """
 
-    homepage = 'http://eigen.tuxfamily.org/'
-    url      = 'https://bitbucket.org/eigen/eigen/get/3.3.4.tar.bz2'
+    homepage = "https://eigen.tuxfamily.org/"
+    git = "https://gitlab.com/libeigen/eigen.git"
+    url = "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz"
 
-    version('3.3.7', sha256='9f13cf90dedbe3e52a19f43000d71fdf72e986beb9a5436dddcd61ff9d77a3ce')
-    version('3.3.5', 'e83549a79d1b721da0f8899ab34edf95')
-    version('3.3.4', 'a7aab9f758249b86c93221ad417fbe18')
-    version('3.3.3', 'b2ddade41040d9cf73b39b4b51e8775b')
-    version('3.3.1', 'edb6799ef413b0868aace20d2403864c')
-    version('3.2.10', 'a85bb68c82988648c3d53ba9768d7dcbcfe105f8')
-    version('3.2.9', '59ab81212f8eb2534b1545a9b42c38bf618a0d71')
-    version('3.2.8', '64f4aef8012a424c7e079eaf0be71793ab9bc6e0')
-    version('3.2.7', 'cc1bacbad97558b97da6b77c9644f184')
+    maintainers("HaoZeke")
 
-    variant('metis', default=False,
-            description='Enables metis permutations in sparse algebra')
-    variant('scotch', default=False,
-            description='Enables scotch/pastix sparse factorization methods')
-    variant('fftw', default=False,
-            description='Enables FFTW backend for the FFT plugin')
-    variant('suitesparse', default=False,
-            description='Enables SuiteSparse sparse factorization methods')
-    variant('mpfr', default=False,
-            description='Enables the multi-precisions floating-point plugin')
-    variant('build_type', default='RelWithDebInfo',
-            description='The build type to build',
-            values=('Debug', 'Release', 'RelWithDebInfo'))
+    license("MPL-2.0")
 
-    # TODO : dependency on googlehash, superlu, adolc missing
-    depends_on('metis@5:', when='+metis')
-    depends_on('scotch', when='+scotch')
-    depends_on('fftw', when='+fftw')
-    depends_on('suite-sparse', when='+suitesparse')
-    depends_on('mpfr@2.3.0:', when='+mpfr')
-    depends_on('gmp', when='+mpfr')
+    version("master", branch="master")
+    version("3.4.0", sha256="8586084f71f9bde545ee7fa6d00288b264a2b7ac3607b974e54d13e7162c1c72")
+    version("3.3.9", sha256="7985975b787340124786f092b3a07d594b2e9cd53bbfe5f3d9b1daee7d55f56f")
+    version("3.3.8", sha256="146a480b8ed1fb6ac7cd33fec9eb5e8f8f62c3683b3f850094d9d5c35a92419a")
+    version("3.3.7", sha256="d56fbad95abf993f8af608484729e3d87ef611dd85b3380a8bad1d5cbc373a57")
+    version("3.3.6", sha256="e7cd8c94d6516d1ada9893ccc7c9a400fcee99927c902f15adba940787104dba")
+    version("3.3.5", sha256="383407ab3d0c268074e97a2cbba84ac197fd24532f014aa2adc522355c1aa2d0")
+    version("3.3.4", sha256="c5ca6e3442fb48ae75159ca7568854d9ba737bc351460f27ee91b6f3f9fd1f3d")
+    version("3.3.3", sha256="fd72694390bd8e81586205717d2cf823e718f584b779a155db747d1e68481a2e")
+    version("3.3.2", sha256="8d7611247fba1236da4dee7a64607017b6fb9ca5e3f0dc44d480e5d33d5663a5")
+    version("3.3.1", sha256="50dd21a8997fce0857b27a126811ae8ee7619984ab5425ecf33510cec649e642")
+    version("3.3.0", sha256="de82e01f97e1a95f121bd3ace87aa1237818353c14e38f630a65f5ba2c92f0e1")
+    version("3.2.10", sha256="0920cb60ec38de5fb509650014eff7cc6d26a097c7b38c7db4b1aa5df5c85042")
+    version("3.2.9", sha256="f683b20259ad72c3d384c00278166dd2a42d99b78dcd589ed4a6ca74bbb4ca07")
+    version("3.2.8", sha256="64c54781cfe9eefef2792003ab04b271d4b2ec32eda6e9cdf120d7aad4ebb282")
+    version("3.2.7", sha256="0ea9df884873275bf39c2965d486fa2d112f3a64b97b60b45b8bc4bb034a36c1")
+    version("3.2.6", sha256="e097b8dcc5ad30d40af4ad72d7052e3f78639469baf83cffaadc045459cda21f")
+    version("3.2.5", sha256="8068bd528a2ff3885eb55225c27237cf5cda834355599f05c2c85345db8338b4")
 
-    patch('find-ptscotch.patch', when='@3.3.4')
+    variant("nightly", description="run Nightly test", default=False)
 
-    def setup_environment(self, spack_env, run_env):
-        run_env.prepend_path('CPATH',
-                             join_path(self.prefix, 'include', 'eigen3'))
+    depends_on("c", type="build")
+    depends_on("cxx", type="build")
+
+    # TODO: https://eigen.tuxfamily.org/dox/TopicUsingBlasLapack.html
+
+    # Older eigen releases haven't been tested with ROCm
+    conflicts("+rocm @:3.4.0")
+
+    # there is a bug that provokes bad parsing of nvhpc version
+    patch(
+        "https://gitlab.com/libeigen/eigen/-/commit/001a57519a7aa909d3bf0cd8c6ec8a9cd19d9c70.diff",
+        when="@3.2.6:3.3.9",
+        sha256="55daee880b7669807efc0dcbeda2ae3b659e6dd4df3932f3573c8778bf5f8a42",
+    )
+
+    # there is a bug in 3.3.8 that provokes a compile error in dependent packages, see https://gitlab.com/libeigen/eigen/-/issues/2011
+    patch(
+        "https://gitlab.com/libeigen/eigen/-/commit/ef3cc72cb65e2d500459c178c63e349bacfa834f.diff",
+        when="@3.3.8",
+        sha256="b8877a84c4338f08ab8a6bb8b274c768e93d36ac05b733b078745198919a74bf",
+    )
+
+    # there is a bug in 3.3.4 that provokes a compile error with the xl compiler
+    # See https://gitlab.com/libeigen/eigen/-/issues/1555
+    patch("xlc-compilation-3.3.4.patch", when="@3.3.4%xl_r")
+
+    # From http://eigen.tuxfamily.org/index.php?title=Main_Page#Requirements
+    # "Eigen doesn't have any dependencies other than the C++ standard
+    # library."
+    variant(
+        "build_type",
+        default="RelWithDebInfo",
+        description="The build type to build",
+        values=("Debug", "Release", "RelWithDebInfo"),
+    )
+
+    depends_on("boost@1.53:", when="@master", type="test")
+    # TODO: latex and doxygen needed to produce docs with make doc
+    # TODO: Other dependencies might be needed to test this package
+
+    def setup_run_environment(self, env):
+        env.prepend_path("CPATH", self.prefix.include.eigen3)
+
+    def cmake_args(self):
+        args = []
+        if self.spec.satisfies("@:3.4"):
+            # CMake fails without this flag
+            # https://gitlab.com/libeigen/eigen/-/issues/1656
+            args.extend([self.define("BUILD_TESTING", "ON")])
+
+        if self.spec.satisfies("+rocm"):
+            args.extend(
+                [
+                    self.define("ROCM_PATH", self.spec["hip"].prefix),
+                    self.define("HIP_PATH", self.spec["hip"].prefix),
+                    self.define("EIGEN_TEST_HIP", "ON"),
+                ]
+            )
+
+        if self.spec.satisfies("@master") and self.run_tests:
+            args.append(self.define("Boost_INCLUDE_DIR", self.spec["boost"].prefix.include))
+
+        return args
+
+    def check(self):
+        ctest_args = ["--test-dir", self.build_directory, "--repeat", "until-pass:3"]
+        if self.spec.satisfies("+nightly"):
+            ctest_args.append("-D")
+            ctest_args.append("Nightly")
+        ctest(*ctest_args)
 
     @property
     def headers(self):

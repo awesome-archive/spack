@@ -1,19 +1,20 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyAvroJsonSerializer(PythonPackage):
     """Serializes data into a JSON format using AVRO schema."""
 
     homepage = "https://github.com/linkedin/python-avro-json-serializer"
-    url      = "https://github.com/linkedin/python-avro-json-serializer/archive/0.4.tar.gz"
+    pypi = "avro_json_serializer/avro_json_serializer-0.4.tar.gz"
 
-    version('0.4',  'ee32f415e03820653cf8477bf5bfc779')
+    license("Apache-2.0")
 
-    depends_on('py-setuptools', type='build')
-    depends_on('py-simplejson', type=('build', 'run'))
-    depends_on('py-avro', type=('build', 'run'))
+    version("0.4", sha256="f9dac2dac92036c5dd5aba8c716545fc0a0630cc365a51ab15bc2ac47eac28f1")
+
+    depends_on("py-setuptools", type="build")
+    depends_on("py-simplejson", type=("build", "run"))
+    depends_on("py-avro", type=("build", "run"))

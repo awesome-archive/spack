@@ -1,23 +1,31 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class RBackports(RPackage):
-    """Implementations of functions which have been introduced
-    in R since version 3.0.0. The backports are conditionally
-    exported which results in R resolving the function names to
-    the version shipped with R (if available) and uses the
-    implemented backports as fallback. This way package developers
-    can make use of the new functions without worrying about the
-    minimum required R version."""
+    """Reimplementations of Functions Introduced Since R-3.0.0.
 
-    homepage = "https://cran.r-project.org/package=backports"
-    url      = "https://cran.r-project.org/src/contrib/backports_1.1.1.tar.gz"
-    list_url = "https://cran.r-project.org/src/contrib/Archive/backports"
+    Functions introduced or changed since R v3.0.0 are re-implemented in this
+    package. The backports are conditionally exported in order to let R resolve
+    the function name to either the implemented backport, or the respective
+    base version, if available. Package developers can make use of new
+    functions or arguments by selectively importing specific backports to
+    support older installations."""
 
-    version('1.1.1', '969543a0af32dc23bba9bb37ec82008c')
-    version('1.1.0', 'b97a71b026fd7ede0e449be93d160c17')
+    cran = "backports"
+
+    license("GPL-2.0-only OR GPL-3.0-only")
+
+    version("1.5.0", sha256="0d3ed9db8f1505e88967f48d669b2a257e0c6b7e6320ea64b946c1bd40897ca2")
+    version("1.4.1", sha256="845c3c59fbb05e5a892c4231b955a0afdd331d82b7cc815bcff0672023242474")
+    version("1.4.0", sha256="e7611565d24a852ad8b08579a7c67ad9121c1bda148bade98c7bec686e8dabbf")
+    version("1.2.1", sha256="a2834bbd57e305e5d8010322f1906ea1789b3b5ba5eca77c5ff4248aceb7c2d5")
+    version("1.1.4", sha256="ee4b5efef22fa7ef27d7983ffcd31db52f81e1fbb7189c6e89ee09b69349ff03")
+    version("1.1.3", sha256="e41bd146824ec921994f1b176d0e4cca0b36dd3db32ca7a954d872a5ba214cc1")
+    version("1.1.1", sha256="494e81a4829339c8f1cc3e015daa807e9138b8e21b929965fc7c00b1abbe8897")
+    version("1.1.0", sha256="c5536966ed6ca93f20c9a21d4f569cc1c6865d3352445ea66448f82590349fcd")
+
+    depends_on("r@3.0.0:", type=("build", "run"))

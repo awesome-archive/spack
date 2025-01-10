@@ -1,23 +1,17 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
-
 import stat
+import warnings
 
-from six import string_types
-from six import iteritems
-
-from llnl.util.lang import classproperty
-
-import spack.repo
+import spack.config
 import spack.error
-from spack.util.path import canonicalize_path
-from spack.version import VersionList
-from spack.config import ConfigError
+import spack.repo
+import spack.spec
+from spack.error import ConfigError
+from spack.version import Version
 
-_lesser_spec_types = {'compiler': spack.spec.CompilerSpec,
-                      'version': VersionList}
+_lesser_spec_types = {"compiler": spack.spec.CompilerSpec, "version": Version}
 
 
 def _spec_type(component):
@@ -25,28 +19,7 @@ def _spec_type(component):
     return _lesser_spec_types.get(component, spack.spec.Spec)
 
 
-def get_packages_config():
-    """Wrapper around get_packages_config() to validate semantics."""
-    config = spack.config.get('packages')
-
-    # Get a list of virtuals from packages.yaml.  Note that because we
-    # check spack.repo, this collects virtuals that are actually provided
-    # by sometihng, not just packages/names that don't exist.
-    # So, this won't include, e.g., 'all'.
-    virtuals = [(pkg_name, pkg_name._start_mark) for pkg_name in config
-                if spack.repo.path.is_virtual(pkg_name)]
-
-    # die if there are virtuals in `packages.py`
-    if virtuals:
-        errors = ["%s: %s" % (line_info, name) for name, line_info in virtuals]
-        raise VirtualInPackagesYAMLError(
-            "packages.yaml entries cannot be virtual packages:",
-            '\n'.join(errors))
-
-    return config
-
-
-class PackagePrefs(object):
+class PackagePrefs:
     """Defines the sort order for a set of specs.
 
     Spack's package preference implementation uses PackagePrefss to
@@ -75,29 +48,33 @@ class PackagePrefs(object):
        provider_spec_list.sort(key=kf)
 
     """
-    _packages_config_cache = None
-    _spec_cache = {}
 
-    def __init__(self, pkgname, component, vpkg=None):
+    def __init__(self, pkgname, component, vpkg=None, all=True):
         self.pkgname = pkgname
         self.component = component
         self.vpkg = vpkg
+        self.all = all
+
+        self._spec_order = None
 
     def __call__(self, spec):
         """Return a key object (an index) that can be used to sort spec.
 
-           Sort is done in package order. We don't cache the result of
-           this function as Python's sort functions already ensure that the
-           key function is called at most once per sorted element.
+        Sort is done in package order. We don't cache the result of
+        this function as Python's sort functions already ensure that the
+        key function is called at most once per sorted element.
         """
-        spec_order = self._specs_for_pkg(
-            self.pkgname, self.component, self.vpkg)
+        if self._spec_order is None:
+            self._spec_order = self._specs_for_pkg(
+                self.pkgname, self.component, self.vpkg, self.all
+            )
+        spec_order = self._spec_order
 
         # integer is the index of the first spec in order that satisfies
         # spec, or it's a number larger than any position in the order.
         match_index = next(
-            (i for i, s in enumerate(spec_order) if spec.satisfies(s)),
-            len(spec_order))
+            (i for i, s in enumerate(spec_order) if spec.intersects(s)), len(spec_order)
+        )
         if match_index < len(spec_order) and spec_order[match_index] == spec:
             # If this is called with multiple specs that all satisfy the same
             # minimum index in spec_order, the one which matches that element
@@ -107,24 +84,17 @@ class PackagePrefs(object):
             match_index -= 0.5
         return match_index
 
-    @classproperty
-    @classmethod
-    def _packages_config(cls):
-        if cls._packages_config_cache is None:
-            cls._packages_config_cache = get_packages_config()
-        return cls._packages_config_cache
-
     @classmethod
     def order_for_package(cls, pkgname, component, vpkg=None, all=True):
         """Given a package name, sort component (e.g, version, compiler, ...),
-           and an optional vpkg, return the list from the packages config.
+        and an optional vpkg, return the list from the packages config.
         """
         pkglist = [pkgname]
         if all:
-            pkglist.append('all')
+            pkglist.append("all")
 
         for pkg in pkglist:
-            pkg_entry = cls._packages_config.get(pkg)
+            pkg_entry = spack.config.get("packages").get(pkg)
             if not pkg_entry:
                 continue
 
@@ -137,102 +107,74 @@ class PackagePrefs(object):
                 order = order.get(vpkg)
 
             if order:
-                return [str(s).strip() for s in order]
+                ret = [str(s).strip() for s in order]
+                if component == "target":
+                    ret = ["target=%s" % tname for tname in ret]
+                return ret
 
         return []
 
     @classmethod
-    def _specs_for_pkg(cls, pkgname, component, vpkg=None):
+    def _specs_for_pkg(cls, pkgname, component, vpkg=None, all=True):
         """Given a sort order specified by the pkgname/component/second_key,
-           return a list of CompilerSpecs, VersionLists, or Specs for
-           that sorting list.
+        return a list of CompilerSpecs, VersionLists, or Specs for
+        that sorting list.
         """
-        key = (pkgname, component, vpkg)
-
-        specs = cls._spec_cache.get(key)
-        if specs is None:
-            pkglist = cls.order_for_package(pkgname, component, vpkg)
-            spec_type = _spec_type(component)
-            specs = [spec_type(s) for s in pkglist]
-            cls._spec_cache[key] = specs
-
-        return specs
-
-    @classmethod
-    def clear_caches(cls):
-        cls._packages_config_cache = None
-        cls._spec_cache = {}
+        pkglist = cls.order_for_package(pkgname, component, vpkg, all)
+        spec_type = _spec_type(component)
+        return [spec_type(s) for s in pkglist]
 
     @classmethod
     def has_preferred_providers(cls, pkgname, vpkg):
         """Whether specific package has a preferred vpkg providers."""
-        return bool(cls.order_for_package(pkgname, 'providers', vpkg, False))
+        return bool(cls.order_for_package(pkgname, "providers", vpkg, False))
+
+    @classmethod
+    def has_preferred_targets(cls, pkg_name):
+        """Whether specific package has a preferred vpkg providers."""
+        return bool(cls.order_for_package(pkg_name, "target"))
 
     @classmethod
     def preferred_variants(cls, pkg_name):
         """Return a VariantMap of preferred variants/values for a spec."""
-        for pkg in (pkg_name, 'all'):
-            variants = cls._packages_config.get(pkg, {}).get('variants', '')
+        for pkg_cls in (pkg_name, "all"):
+            variants = spack.config.get("packages").get(pkg_cls, {}).get("variants", "")
             if variants:
                 break
 
         # allow variants to be list or string
-        if not isinstance(variants, string_types):
+        if not isinstance(variants, str):
             variants = " ".join(variants)
 
         # Only return variants that are actually supported by the package
-        pkg = spack.repo.get(pkg_name)
-        spec = spack.spec.Spec("%s %s" % (pkg_name, variants))
-        return dict((name, variant) for name, variant in spec.variants.items()
-                    if name in pkg.variants)
-
-
-def spec_externals(spec):
-    """Return a list of external specs (w/external directory path filled in),
-       one for each known external installation."""
-    # break circular import.
-    from spack.util.module_cmd import get_path_from_module # NOQA: ignore=F401
-
-    allpkgs = get_packages_config()
-    name = spec.name
-
-    external_specs = []
-    pkg_paths = allpkgs.get(name, {}).get('paths', None)
-    pkg_modules = allpkgs.get(name, {}).get('modules', None)
-    if (not pkg_paths) and (not pkg_modules):
-        return []
-
-    for external_spec, path in iteritems(pkg_paths):
-        if not path:
-            # skip entries without paths (avoid creating extra Specs)
-            continue
-
-        external_spec = spack.spec.Spec(external_spec,
-                                        external_path=canonicalize_path(path))
-        if external_spec.satisfies(spec):
-            external_specs.append(external_spec)
-
-    for external_spec, module in iteritems(pkg_modules):
-        if not module:
-            continue
-
-        external_spec = spack.spec.Spec(
-            external_spec, external_module=module)
-        if external_spec.satisfies(spec):
-            external_specs.append(external_spec)
-
-    # defensively copy returned specs
-    return [s.copy() for s in external_specs]
+        pkg_cls = spack.repo.PATH.get_pkg_class(pkg_name)
+        spec = spack.spec.Spec(f"{pkg_name} {variants}")
+        return {
+            name: variant
+            for name, variant in spec.variants.items()
+            if name in pkg_cls.variant_names()
+        }
 
 
 def is_spec_buildable(spec):
-    """Return true if the spec pkgspec is configured as buildable"""
-    allpkgs = get_packages_config()
-    if spec.name not in allpkgs:
-        return True
-    if 'buildable' not in allpkgs[spec.name]:
-        return True
-    return allpkgs[spec.name]['buildable']
+    """Return true if the spec is configured as buildable"""
+    allpkgs = spack.config.get("packages")
+    all_buildable = allpkgs.get("all", {}).get("buildable", True)
+    so_far = all_buildable  # the default "so far"
+
+    def _package(s):
+        pkg_cls = spack.repo.PATH.get_pkg_class(s.name)
+        return pkg_cls(s)
+
+    # check whether any providers for this package override the default
+    if any(
+        _package(spec).provides(name) and entry.get("buildable", so_far) != so_far
+        for name, entry in allpkgs.items()
+    ):
+        so_far = not so_far
+
+    spec_buildable = allpkgs.get(spec.name, {}).get("buildable", so_far)
+    return spec_buildable
 
 
 def get_package_dir_permissions(spec):
@@ -242,8 +184,14 @@ def get_package_dir_permissions(spec):
     attribute sticky for the directory. Package-specific settings take
     precedent over settings for ``all``"""
     perms = get_package_permissions(spec)
-    if perms & stat.S_IRWXG:
+    if perms & stat.S_IRWXG and spack.config.get("config:allow_sgid", True):
         perms |= stat.S_ISGID
+        if spec.concrete and "/afs/" in spec.prefix:
+            warnings.warn(
+                "Directory {0} seems to be located on AFS. If you"
+                " encounter errors, try disabling the allow_sgid option"
+                " using: spack config add 'config:allow_sgid:false'".format(spec.prefix)
+            )
     return perms
 
 
@@ -253,42 +201,44 @@ def get_package_permissions(spec):
     Package-specific settings take precedence over settings for ``all``"""
 
     # Get read permissions level
-    for name in (spec.name, 'all'):
+    for name in (spec.name, "all"):
         try:
-            readable = spack.config.get('packages:%s:permissions:read' % name,
-                                        '')
+            readable = spack.config.get("packages:%s:permissions:read" % name, "")
             if readable:
                 break
         except AttributeError:
-            readable = 'world'
+            readable = "world"
 
     # Get write permissions level
-    for name in (spec.name, 'all'):
+    for name in (spec.name, "all"):
         try:
-            writable = spack.config.get('packages:%s:permissions:write' % name,
-                                        '')
+            writable = spack.config.get("packages:%s:permissions:write" % name, "")
             if writable:
                 break
         except AttributeError:
-            writable = 'user'
+            writable = "user"
 
     perms = stat.S_IRWXU
-    if readable in ('world', 'group'):  # world includes group
+    if readable in ("world", "group"):  # world includes group
         perms |= stat.S_IRGRP | stat.S_IXGRP
-    if readable == 'world':
+    if readable == "world":
         perms |= stat.S_IROTH | stat.S_IXOTH
 
-    if writable in ('world', 'group'):
-        if readable == 'user':
-            raise ConfigError('Writable permissions may not be more' +
-                              ' permissive than readable permissions.\n' +
-                              '      Violating package is %s' % spec.name)
+    if writable in ("world", "group"):
+        if readable == "user":
+            raise ConfigError(
+                "Writable permissions may not be more"
+                + " permissive than readable permissions.\n"
+                + "      Violating package is %s" % spec.name
+            )
         perms |= stat.S_IWGRP
-    if writable == 'world':
-        if readable != 'world':
-            raise ConfigError('Writable permissions may not be more' +
-                              ' permissive than readable permissions.\n' +
-                              '      Violating package is %s' % spec.name)
+    if writable == "world":
+        if readable != "world":
+            raise ConfigError(
+                "Writable permissions may not be more"
+                + " permissive than readable permissions.\n"
+                + "      Violating package is %s" % spec.name
+            )
         perms |= stat.S_IWOTH
 
     return perms
@@ -298,14 +248,13 @@ def get_package_group(spec):
     """Return the unix group associated with the spec.
 
     Package-specific settings take precedence over settings for ``all``"""
-    for name in (spec.name, 'all'):
+    for name in (spec.name, "all"):
         try:
-            group = spack.config.get('packages:%s:permissions:group' % name,
-                                     '')
+            group = spack.config.get("packages:%s:permissions:group" % name, "")
             if group:
                 break
         except AttributeError:
-            group = ''
+            group = ""
     return group
 
 

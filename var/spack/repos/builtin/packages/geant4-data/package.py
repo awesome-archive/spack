@@ -1,95 +1,228 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
 import os
-import glob
+
+from spack.package import *
 
 
-class Geant4Data(Package):
-    """An umbrella package to hold Geant4 data packages"""
+class Geant4Data(BundlePackage):
+    """A bundle package to hold Geant4 data packages"""
 
     homepage = "http://geant4.cern.ch"
-    url      = "http://geant4-data.web.cern.ch/geant4-data/ReleaseNotes/ReleaseNotes4.10.3.html"
 
-    version('10.03.p03', '2248ad436613897d9fad93bdb99d9446', expand=False)
-    version('10.04', 'c49194b96e65ed4527d34d22a9860972', expand=False)
+    maintainers("drbenmorgan")
 
-    # geant4@10.03.p03
-    depends_on("g4abla@3.0", when='@10.03.p03 ')
-    depends_on("g4emlow@6.50", when='@10.03.p03 ')
-    depends_on("g4ndl@4.5", when='@10.03.p03 ')
-    depends_on("g4neutronxs@1.4", when='@10.03.p03 ')
-    depends_on("g4saiddata@1.1", when='@10.03.p03 ')
-    depends_on("g4ensdfstate@2.1", when='@10.03.p03 ')
-    depends_on("g4photonevaporation@4.3.2", when='@10.03.p03 ')
-    depends_on("g4pii@1.3", when='@10.03.p03 ')
-    depends_on("g4radioactivedecay@5.1.1", when='@10.03.p03 ')
-    depends_on("g4realsurface@1.0", when='@10.03.p03 ')
-    depends_on("g4tendl@1.3", when='@10.03.p03 ')
-    # geant4@10.04
-    depends_on("g4abla@3.1", when='@10.04 ')
-    depends_on("g4emlow@7.3", when='@10.04 ')
-    depends_on("g4ndl@4.5", when='@10.04 ')
-    depends_on("g4neutronxs@1.4", when='@10.04 ')
-    depends_on("g4saiddata@1.1", when='@10.04 ')
-    depends_on("g4ensdfstate@2.2", when='@10.04 ')
-    depends_on("g4photonevaporation@5.2", when='@10.04 ')
-    depends_on("g4pii@1.3", when='@10.04 ')
-    depends_on("g4radioactivedecay@5.2", when='@10.04 ')
-    depends_on("g4realsurface@2.1", when='@10.04 ')
-    depends_on("g4tendl@1.3.2", when='@10.04 ')
+    tags = ["hep"]
+
+    version("11.3.0")
+    version("11.2.2")
+    version("11.2.0")
+    version("11.1.0")
+    version("11.0.0")
+    version("10.7.4")
+    version("10.7.3")
+    version("10.7.2")
+    version("10.7.1")
+    version("10.7.0")
+    version("10.6.3")
+    version("10.6.2")
+    version("10.6.1")
+    version("10.6.0")
+    version("10.5.1")
+    version("10.4.3")
+    version("10.4.0")
+    version("10.3.3")
+    version("10.0.4")
+
+    # Add install phase so we can create the data "view"
+    phases = ["install"]
+
+    # For clarity, declare deps on a Major-Minor version basis as
+    # they generally don't change on the patch level
+    # Can move to declaring on a dataset basis if needed
+    _datasets = {
+        "11.3.0:11.3": [
+            "g4ndl@4.7.1",
+            "g4emlow@8.6.1",
+            "g4photonevaporation@6.1",
+            "g4radioactivedecay@6.1.2",
+            "g4particlexs@4.1",
+            "g4pii@1.3",
+            "g4realsurface@2.2",
+            "g4saiddata@2.0",
+            "g4abla@3.3",
+            "g4incl@1.2",
+            "g4ensdfstate@3.0",
+            "g4channeling@1.0",
+        ],
+        "11.2.2:11.2": [
+            "g4ndl@4.7.1",
+            "g4emlow@8.5",
+            "g4photonevaporation@5.7",
+            "g4radioactivedecay@5.6",
+            "g4particlexs@4.0",
+            "g4pii@1.3",
+            "g4realsurface@2.2",
+            "g4saiddata@2.0",
+            "g4abla@3.3",
+            "g4incl@1.2",
+            "g4ensdfstate@2.3",
+        ],
+        "11.2.0:11.2.1": [
+            "g4ndl@=4.7",
+            "g4emlow@8.5",
+            "g4photonevaporation@5.7",
+            "g4radioactivedecay@5.6",
+            "g4particlexs@4.0",
+            "g4pii@1.3",
+            "g4realsurface@2.2",
+            "g4saiddata@2.0",
+            "g4abla@3.3",
+            "g4incl@1.2",
+            "g4ensdfstate@2.3",
+        ],
+        "11.1.0:11.1": [
+            "g4ndl@4.7",
+            "g4emlow@8.2",
+            "g4photonevaporation@5.7",
+            "g4radioactivedecay@5.6",
+            "g4particlexs@4.0",
+            "g4pii@1.3",
+            "g4realsurface@2.2",
+            "g4saiddata@2.0",
+            "g4abla@3.1",
+            "g4incl@1.0",
+            "g4ensdfstate@2.3",
+        ],
+        "11.0.0:11.0": [
+            "g4ndl@4.6",
+            "g4emlow@8.0",
+            "g4photonevaporation@5.7",
+            "g4radioactivedecay@5.6",
+            "g4particlexs@4.0",
+            "g4pii@1.3",
+            "g4realsurface@2.2",
+            "g4saiddata@2.0",
+            "g4abla@3.1",
+            "g4incl@1.0",
+            "g4ensdfstate@2.3",
+        ],
+        "10.7.0:10.7": [
+            "g4ndl@4.6",
+            "g4emlow@7.13",
+            "g4photonevaporation@5.7",
+            "g4radioactivedecay@5.6",
+            "g4pii@1.3",
+            "g4realsurface@2.2",
+            "g4saiddata@2.0",
+            "g4abla@3.1",
+            "g4incl@1.0",
+            "g4ensdfstate@2.3",
+        ],
+        "10.7.1:10.7": ["g4particlexs@3.1.1"],
+        "10.7.0": ["g4particlexs@3.1"],
+        "10.6.0:10.6": [
+            "g4ndl@4.6",
+            "g4emlow@7.9.1",
+            "g4photonevaporation@5.5",
+            "g4radioactivedecay@5.4",
+            "g4particlexs@2.1",
+            "g4pii@1.3",
+            "g4realsurface@2.1.1",
+            "g4saiddata@2.0",
+            "g4abla@3.1",
+            "g4incl@1.0",
+            "g4ensdfstate@2.2",
+        ],
+        "10.5.0:10.5": [
+            "g4ndl@4.5",
+            "g4emlow@7.7",
+            "g4photonevaporation@5.3",
+            "g4radioactivedecay@5.3",
+            "g4particlexs@1.1",
+            "g4pii@1.3",
+            "g4realsurface@2.1.1",
+            "g4saiddata@2.0",
+            "g4abla@3.1",
+            "g4incl@1.0",
+            "g4ensdfstate@2.2",
+        ],
+        "10.4.0:10.4": [
+            "g4ndl@4.5",
+            "g4emlow@7.3",
+            "g4photonevaporation@5.2",
+            "g4radioactivedecay@5.2",
+            "g4neutronxs@1.4",
+            "g4pii@1.3",
+            "g4saiddata@1.1",
+            "g4abla@3.1",
+            "g4ensdfstate@2.2",
+        ],
+        "10.4.2:10.4": ["g4realsurface@2.1.1"],
+        "10.4.0:10.4.1": ["g4realsurface@2.1"],
+        "10.3.0:10.3": [
+            "g4ndl@4.5",
+            "g4emlow@6.50",
+            "g4neutronxs@1.4",
+            "g4pii@1.3",
+            "g4realsurface@1.0",
+            "g4saiddata@1.1",
+            "g4abla@3.0",
+            "g4ensdfstate@2.1",
+        ],
+        "10.3.1:10.3": ["g4photonevaporation@4.3.2", "g4radioactivedecay@5.1.1"],
+        "10.3.0": ["g4photonevaporation@4.3", "g4radioactivedecay@5.1"],
+        "10.0.4": [
+            "g4ndl@4.4",
+            "g4emlow@6.35",
+            "g4photonevaporation@3.0",
+            "g4radioactivedecay@4.0",
+            "g4neutronxs@1.4",
+            "g4pii@1.3",
+            "g4realsurface@1.0",
+            "g4saiddata@1.1",
+            "g4abla@3.0",
+            "g4ensdfstate@1.0",
+        ],
+    }
+
+    for _vers, _dsets in _datasets.items():
+        _vers = "@" + _vers
+        for _d in _dsets:
+            depends_on(_d, type=("build", "run"), when=_vers)
+
+    _datasets_tendl = {
+        "11.0:11.3": "g4tendl@1.4",
+        "10.4:10.7": "g4tendl@1.3.2",
+        "10.3:10.3": "g4tendl@1.3",
+    }
+
+    variant("tendl", default=True, when="@10.3:", description="Enable G4TENDL")
+    with when("+tendl"):
+        for _vers, _d in _datasets_tendl.items():
+            depends_on(_d, type=("build", "run"), when="@" + _vers)
+    variant("nudexlib", default=True, when="@11.3.0:11.3", description="Enable G4NUDEXLIB")
+    with when("+nudexlib"):
+        depends_on("g4nudexlib@1.0", type=("build", "run"))
+    variant("urrpt", default=True, when="@11.3.0:11.3", description="Enable G4URRPT")
+    with when("+urrpt"):
+        depends_on("g4urrpt@1.1", type=("build", "run"))
+
+    @property
+    def datadir(self):
+        spec = self.spec
+        return join_path(spec.prefix.share, "{0}-{1}".format(self.name, self.version.dotted))
 
     def install(self, spec, prefix):
-        spec = self.spec
-        version = self.version
-        major = version[0]
-        minor = version[1]
-        if len(version) > 2:
-            patch = version[-1]
-        else:
-            patch = 0
-        data = 'Geant4-%s.%s.%s/data' % (major, minor, patch)
-        datadir = join_path(spec.prefix.share, data)
-        with working_dir(datadir, create=True):
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4abla'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4emlow'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4ndl'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4saiddata'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4neutronxs'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4ensdfstate'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4photonevaporation'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4pii'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4radioactivedecay'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4realsurface'].prefix):
-                os.symlink(d, os.path.basename(d))
-            for d in glob.glob('%s/share/data/*' %
-                               spec['g4tendl'].prefix):
-                os.symlink(d, os.path.basename(d))
+        with working_dir(self.datadir, create=True):
+            for s in spec.dependencies():
+                if not s.name.startswith("g4"):
+                    continue
 
-    def url_for_version(self, version):
-        """Handle version string."""
-        url = 'http://geant4-data.web.cern.ch/geant4-data/ReleaseNotes/'
-        url = url + 'ReleaseNotes4.{0}.{1}.html'.format(version[0], version[1])
-        return url
+                if not hasattr(s.package, "g4datasetname"):
+                    raise InstallError(f"Dependency `{s.name}` does not expose `g4datasetname`")
+
+                d = "{0}/data/{1}".format(s.prefix.share, s.package.g4datasetname)
+                os.symlink(d, os.path.basename(d))

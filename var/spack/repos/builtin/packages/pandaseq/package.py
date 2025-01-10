@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Pandaseq(AutotoolsPackage):
@@ -12,19 +11,23 @@ class Pandaseq(AutotoolsPackage):
     sequence."""
 
     homepage = "https://github.com/neufeld/pandaseq"
-    url      = "https://github.com/neufeld/pandaseq/archive/v2.11.tar.gz"
+    url = "https://github.com/neufeld/pandaseq/archive/v2.11.tar.gz"
 
-    version('2.11', 'a8ae0e938bac592fc07dfa668147d80b')
-    version('2.10', '5b5b04c9b693a999f10a9c9bd643f068')
+    license("GPL-3.0-only")
 
-    depends_on('autoconf',    type='build')
-    depends_on('automake',    type='build')
-    depends_on('libtool',     type=('build', 'link'))
-    depends_on('m4',          type='build')
-    depends_on('zlib',        type='build')
-    depends_on('pkgconfig',   type='build')
-    depends_on('bzip2',       type='link')
+    version("2.11", sha256="6e3e35d88c95f57d612d559e093656404c1d48c341a8baa6bef7bb0f09fc8f82")
+    version("2.10", sha256="93cd34fc26a7357e14e386b9c9ba9b28361cf4da7cf62562dc8501e220f9a561")
+
+    depends_on("c", type="build")  # generated
+
+    depends_on("autoconf", type="build")
+    depends_on("automake", type="build")
+    depends_on("libtool", type=("build", "link"))
+    depends_on("m4", type="build")
+    depends_on("zlib-api", type="build")
+    depends_on("pkgconfig", type="build")
+    depends_on("bzip2", type="link")
 
     def autoreconf(self, spec, prefix):
-        bash = which('bash')
-        bash('./autogen.sh')
+        bash = which("bash")
+        bash("./autogen.sh")

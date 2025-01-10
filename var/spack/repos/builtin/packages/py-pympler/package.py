@@ -1,23 +1,21 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyPympler(PythonPackage):
     """Development tool to measure, monitor and analyze the memory behavior
-        of Python objects in a running Python application.
+    of Python objects in a running Python application.
     """
 
     homepage = "https://github.com/pympler/pympler"
-    url      = "https://pypi.io/packages/source/P/Pympler/Pympler-0.4.3.tar.gz"
+    pypi = "Pympler/Pympler-0.4.3.tar.gz"
 
-    version('0.4.3', 'bbb4239126e9c99e2effc83b02bf8755')
-    version('0.4.2', '6bdfd913ad4c94036e8a2b358e49abd7')
-    version('0.4.1', '2d54032a6da91ff438f48d5f36b719a6')
-    version('0.4',   '68e4a8aa4a268996fa6a321b664918af')
-    version('0.3.1', '906ce437f46fb30991007671a59d4319')
+    license("Apache-2.0")
 
-    depends_on('python@2.5:')
+    version("1.0.1", sha256="993f1a3599ca3f4fcd7160c7545ad06310c9e12f70174ae7ae8d4e25f6c5d3fa")
+
+    depends_on("python@3.6:3.10", type=("build", "run"))
+    depends_on("py-setuptools", type="build")

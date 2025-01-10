@@ -1,27 +1,27 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
-
 import platform
-from spack.architecture import Platform, Target
+
+import archspec.cpu
+
 from spack.operating_systems.linux_distro import LinuxDistro
+
+from ._platform import Platform
 
 
 class Linux(Platform):
-    priority    = 90
+    priority = 90
 
     def __init__(self):
-        super(Linux, self).__init__('linux')
-        self.add_target('x86_64', Target('x86_64'))
-        self.add_target('ppc64le', Target('ppc64le'))
+        super().__init__("linux")
 
-        self.default = platform.machine()
-        self.front_end = platform.machine()
-        self.back_end = platform.machine()
+        self._add_archspec_targets()
 
-        if self.default not in self.targets:
-            self.add_target(self.default, Target(self.default))
+        # Get specific default
+        self.default = archspec.cpu.host().name
+        self.front_end = self.default
+        self.back_end = self.default
 
         linux_dist = LinuxDistro()
         self.default_os = str(linux_dist)
@@ -31,4 +31,4 @@ class Linux(Platform):
 
     @classmethod
     def detect(cls):
-        return 'linux' in platform.system().lower()
+        return "linux" in platform.system().lower()

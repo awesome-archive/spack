@@ -1,24 +1,27 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class RHoardr(RPackage):
-    """hoardr: Manage Cached Files"""
+    """Manage Cached Files.
 
-    homepage = "https://cran.r-project.org/package=hoardr"
-    url      = "https://cran.r-project.org/src/contrib/hoardr_0.5.2.tar.gz"
-    list_url = "https://cran.r-project.org/src/contrib/Archive/hoardr/"
+    Suite of tools for managing cached files, targeting use in other R
+    packages. Uses 'rappdirs' for cross-platform paths. Provides utilities to
+    manage cache directories, including targeting files by path or by key;
+    cached directories can be compressed and uncompressed easily to save disk
+    space."""
 
-    version('0.5.2', sha256='819113f0e25da105f120a676b5173872a4144f2f6f354cad14b35f898e76dc54')
+    cran = "hoardr"
 
-    depends_on('r-r6@2.2.0:', type=('build', 'run'))
-    depends_on('r-rappdirs@0.3.1:', type=('build', 'run'))
-    depends_on('r-digest', type=('build', 'run'))
-    depends_on('r-roxygen2@6.0.1:', type=('build', 'run'))
-    depends_on('r-testthat', type=('build', 'run'))
-    depends_on('r-knitr', type=('build', 'run'))
-    depends_on('r-rmarkdown', type=('build', 'run'))
+    license("MIT")
+
+    version("0.5.4", sha256="4e031ac1317584451c09bc8288ed73fb2d6ceea3c10d29dbb4be08157e489a37")
+    version("0.5.3", sha256="b9e4d1350e1fde7db922e55128306e3768ee46ff9532f05c96543dcae383647c")
+    version("0.5.2", sha256="819113f0e25da105f120a676b5173872a4144f2f6f354cad14b35f898e76dc54")
+
+    depends_on("r-r6@2.2.0:", type=("build", "run"))
+    depends_on("r-rappdirs@0.3.1:", type=("build", "run"))
+    depends_on("r-digest", type=("build", "run"))

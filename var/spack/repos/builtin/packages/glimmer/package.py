@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Glimmer(MakefilePackage):
@@ -12,13 +11,17 @@ class Glimmer(MakefilePackage):
 
     homepage = "https://ccb.jhu.edu/software/glimmer"
 
-    version('3.02b', '344d012ae12596de905866fe9eb7f16c')
+    license("Artistic-1.0")
 
-    build_directory = 'src'
+    version("3.02b", sha256="ecf28e03d0a675aed7360ca34ca7f19993f5c3ea889273e657ced9fa7d1e2bf6")
+
+    depends_on("cxx", type="build")  # generated
+
+    build_directory = "src"
 
     def url_for_version(self, version):
         url = "https://ccb.jhu.edu/software/glimmer/glimmer{0}.tar.gz"
         return url.format(version.joined)
 
     def install(self, spec, prefix):
-        install_tree('bin', prefix.bin)
+        install_tree("bin", prefix.bin)

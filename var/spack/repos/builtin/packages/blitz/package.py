@@ -1,21 +1,24 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
-class Blitz(AutotoolsPackage):
+class Blitz(CMakePackage):
     """N-dimensional arrays for C++"""
-    homepage = "http://github.com/blitzpp/blitz"
-    url = "https://github.com/blitzpp/blitz/archive/1.0.1.tar.gz"
 
-    version('1.0.1', 'fe43e2cf6c9258bc8b369264dd008971')
-    version('1.0.0', '971c43e22318bbfe8da016e6ef596234')
+    homepage = "https://github.com/blitzpp/blitz"
+    url = "https://github.com/blitzpp/blitz/archive/1.0.2.tar.gz"
 
-    build_targets = ['lib']
+    license("LGPL-3.0-only")
 
-    def check(self):
-        make('check-testsuite')
-        make('check-examples')
+    version("1.0.2", sha256="500db9c3b2617e1f03d0e548977aec10d36811ba1c43bb5ef250c0e3853ae1c2")
+
+    depends_on("cxx", type="build")  # generated
+    depends_on("fortran", type="build")  # generated
+
+    depends_on("python@3:", type="build")
+
+    # Fix makefile and include to build with Fujitsu compiler
+    patch("fujitsu_compiler_specfic_header.patch", when="%fj")

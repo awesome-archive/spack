@@ -1,5 +1,4 @@
-.. Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-   Spack Project Developers. See the top-level COPYRIGHT file for details.
+.. Copyright Spack Project Developers. See COPYRIGHT file for details.
 
    SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
@@ -27,17 +26,28 @@ correspond to one feature/bugfix/extension/etc. One can create PRs with
 changes relevant to different ideas, however reviewing such PRs becomes tedious
 and error prone. If possible, try to follow the **one-PR-one-package/feature** rule.
 
-Spack uses a rough approximation of the `Git Flow <http://nvie.com/posts/a-successful-git-branching-model/>`_
-branching model. The develop branch contains the latest contributions, and
-master is always tagged and points to the latest stable release. Therefore, when
-you send your request, make ``develop`` the destination branch on the
-`Spack repository <https://github.com/spack/spack>`_.
+--------
+Branches
+--------
+
+Spack's ``develop`` branch has the latest contributions. Nearly all pull
+requests should start from ``develop`` and target ``develop``.
+
+There is a branch for each major release series. Release branches
+originate from ``develop`` and have tags for each point release in the
+series. For example, ``releases/v0.14`` has tags for ``0.14.0``,
+``0.14.1``, ``0.14.2``, etc. versions of Spack. We backport important bug
+fixes to these branches, but we do not advance the package versions or
+make other changes that would change the way Spack concretizes
+dependencies. Currently, the maintainers manage these branches by
+cherry-picking from ``develop``. See :ref:`releases` for more
+information.
 
 ----------------------
 Continuous Integration
 ----------------------
 
-Spack uses `Travis CI <https://travis-ci.org/spack/spack>`_ for Continuous Integration
+Spack uses `Github Actions <https://docs.github.com/en/actions>`_ for Continuous Integration
 testing. This means that every time you submit a pull request, a series of tests will
 be run to make sure you didn't accidentally introduce any bugs into Spack. **Your PR
 will not be accepted until it passes all of these tests.** While you can certainly wait
@@ -46,23 +56,24 @@ locally to speed up the review process.
 
 .. note::
 
-   Oftentimes, Travis will fail for reasons other than a problem with your PR.
+   Oftentimes, CI will fail for reasons other than a problem with your PR.
    For example, apt-get, pip, or homebrew will fail to download one of the
    dependencies for the test suite, or a transient bug will cause the unit tests
-   to timeout. If Travis fails, click the "Details" link and click on the test(s)
+   to timeout. If any job fails, click the "Details" link and click on the test(s)
    that is failing. If it doesn't look like it is failing for reasons related to
    your PR, you have two options. If you have write permissions for the Spack
-   repository, you should see a "Restart job" button on the right-hand side. If
+   repository, you should see a "Restart workflow" button on the right-hand side. If
    not, you can close and reopen your PR to rerun all of the tests. If the same
    test keeps failing, there may be a problem with your PR. If you notice that
-   every recent PR is failing with the same error message, it may be that Travis
-   is down or one of Spack's dependencies put out a new release that is causing
-   problems. If this is the case, please file an issue.
+   every recent PR is failing with the same error message, it may be that an issue
+   occurred with the CI infrastructure or one of Spack's dependencies put out a
+   new release that is causing problems. If this is the case, please file an issue.
 
 
-If you take a look in ``$SPACK_ROOT/.travis.yml``, you'll notice that we test
-against Python 2.6, 2.7, and 3.4-3.7 on both macOS and Linux. We currently
+We currently test against Python 2.7 and 3.6-3.10 on both macOS and Linux and
 perform 3 types of tests:
+
+.. _cmd-spack-unit-test:
 
 ^^^^^^^^^^
 Unit Tests
@@ -84,62 +95,109 @@ To run *all* of the unit tests, use:
 
 .. code-block:: console
 
-   $ spack test
+   $ spack unit-test
 
-These tests may take several minutes to complete. If you know you are only
-modifying a single Spack feature, you can run a single unit test at a time:
-
-.. code-block:: console
-
-   $ spack test architecture
-
-This allows you to develop iteratively: make a change, test that change, make
-another change, test that change, etc. To get a list of all available unit
-tests, run:
-
-.. command-output:: spack test --list
-
-A more detailed list of available unit tests can be found by running
-``spack test --long-list``.
-
-By default, ``pytest`` captures the output of all unit tests. If you add print
-statements to a unit test and want to see the output, simply run:
+These tests may take several minutes to complete. If you know you are
+only modifying a single Spack feature, you can run subsets of tests at a
+time.  For example, this would run all the tests in
+``lib/spack/spack/test/architecture.py``:
 
 .. code-block:: console
 
-   $ spack test -s -k architecture
+   $ spack unit-test lib/spack/spack/test/architecture.py
 
-Unit tests are crucial to making sure bugs aren't introduced into Spack. If you
-are modifying core Spack libraries or adding new functionality, please consider
-adding new unit tests or strengthening existing tests.
+And this would run the ``test_platform`` test from that file:
+
+.. code-block:: console
+
+   $ spack unit-test lib/spack/spack/test/architecture.py::test_platform
+
+This allows you to develop iteratively: make a change, test that change,
+make another change, test that change, etc.  We use `pytest
+<http://pytest.org/>`_ as our tests framework, and these types of
+arguments are just passed to the ``pytest`` command underneath. See `the
+pytest docs
+<https://doc.pytest.org/en/latest/how-to/usage.html#specifying-which-tests-to-run>`_
+for more details on test selection syntax.
+
+``spack unit-test`` has a few special options that can help you
+understand what tests are available.  To get a list of all available
+unit test files, run:
+
+.. command-output:: spack unit-test --list
+   :ellipsis: 5
+
+To see a more detailed list of available unit tests, use ``spack
+unit-test --list-long``:
+
+.. command-output:: spack unit-test --list-long
+   :ellipsis: 10
+
+And to see the fully qualified names of all tests, use ``--list-names``:
+
+.. command-output:: spack unit-test --list-names
+   :ellipsis: 5
+
+You can combine these with ``pytest`` arguments to restrict which tests
+you want to know about.  For example, to see just the tests in
+``architecture.py``:
+
+.. command-output:: spack unit-test --list-long lib/spack/spack/test/architecture.py
+
+You can also combine any of these options with a ``pytest`` keyword
+search.  See the `pytest usage docs
+<https://doc.pytest.org/en/latest/how-to/usage.html#specifying-which-tests-to-run>`_
+for more details on test selection syntax. For example, to see the names of all tests that have "spec"
+or "concretize" somewhere in their names:
+
+.. command-output:: spack unit-test --list-names -k "spec and concretize"
+
+By default, ``pytest`` captures the output of all unit tests, and it will
+print any captured output for failed tests. Sometimes it's helpful to see
+your output interactively, while the tests run (e.g., if you add print
+statements to a unit tests).  To see the output *live*, use the ``-s``
+argument to ``pytest``:
+
+.. code-block:: console
+
+   $ spack unit-test -s --list-long lib/spack/spack/test/architecture.py::test_platform
+
+Unit tests are crucial to making sure bugs aren't introduced into
+Spack. If you are modifying core Spack libraries or adding new
+functionality, please add new unit tests for your feature, and consider
+strengthening existing tests.  You will likely be asked to do this if you
+submit a pull request to the Spack project on GitHub.  Check out the
+`pytest docs <http://pytest.org/>`_ and feel free to ask for guidance on
+how to write tests!
 
 .. note::
 
-   There is also a ``run-unit-tests`` script in ``share/spack/qa`` that
-   runs the unit tests. Afterwards, it reports back to Codecov with the
-   percentage of Spack that is covered by unit tests. This script is
-   designed for Travis CI. If you want to run the unit tests yourself, we
-   suggest you use ``spack test``.
+   You may notice the ``share/spack/qa/run-unit-tests`` script in the
+   repository.  This script is designed for CI.  It runs the unit
+   tests and reports coverage statistics back to Codecov. If you want to
+   run the unit tests yourself, we suggest you use ``spack unit-test``.
 
 ^^^^^^^^^^^^
-Flake8 Tests
+Style Tests
 ^^^^^^^^^^^^
 
 Spack uses `Flake8 <http://flake8.pycqa.org/en/latest/>`_ to test for
-`PEP 8 <https://www.python.org/dev/peps/pep-0008/>`_ conformance. PEP 8 is
+`PEP 8 <https://www.python.org/dev/peps/pep-0008/>`_ conformance and
+`mypy <https://mypy.readthedocs.io/en/stable/>`_ for type checking. PEP 8 is
 a series of style guides for Python that provide suggestions for everything
 from variable naming to indentation. In order to limit the number of PRs that
 were mostly style changes, we decided to enforce PEP 8 conformance. Your PR
-needs to comply with PEP 8 in order to be accepted.
+needs to comply with PEP 8 in order to be accepted, and if it modifies the
+spack library it needs to successfully type-check with mypy as well.
 
-Testing for PEP 8 compliance is easy. Simply run the ``spack flake8``
+Testing for compliance with spack's style is easy. Simply run the ``spack style``
 command:
 
 .. code-block:: console
 
-   $ spack flake8
+   $ spack style
 
-``spack flake8`` has a couple advantages over running ``flake8`` by hand:
+``spack style`` has a couple advantages over running the tools by hand:
 
 #. It only tests files that you have modified since branching off of
    ``develop``.
@@ -150,7 +208,9 @@ command:
    checks. For example, URLs are often longer than 80 characters, so we
    exempt them from line length checks. We also exempt lines that start
    with "homepage", "url", "version", "variant", "depends_on", and
-   "extends" in ``package.py`` files.
+   "extends" in ``package.py`` files.  This is now also possible when directly
+   running flake8 if you can use the ``spack`` formatter plugin included with
+   spack.
 
 More approved flake8 exemptions can be found
 `here <https://github.com/spack/spack/blob/develop/.flake8>`_.
@@ -183,36 +243,15 @@ However, if you aren't compliant with PEP 8, flake8 will complain:
 
 Most of the error messages are straightforward, but if you don't understand what
 they mean, just ask questions about them when you submit your PR. The line numbers
-will change if you add or delete lines, so simply run ``spack flake8`` again
+will change if you add or delete lines, so simply run ``spack style`` again
 to update them.
 
 .. tip::
 
    Try fixing flake8 errors in reverse order. This eliminates the need for
-   multiple runs of ``spack flake8`` just to re-compute line numbers and
-   makes it much easier to fix errors directly off of the Travis output.
+   multiple runs of ``spack style`` just to re-compute line numbers and
+   makes it much easier to fix errors directly off of the CI output.
 
-.. warning::
-
-   Flake8 and ``pep8-naming`` require a number of dependencies in order
-   to run.  If you installed ``py-flake8`` and ``py-pep8-naming``, the
-   easiest way to ensure the right packages are on your ``PYTHONPATH`` is
-   to run::
-
-     spack activate py-flake8
-     spack activate pep8-naming
-
-   so that all of the dependencies are symlinked to a central
-   location. If you see an error message like:
-
-   .. code-block:: console
-
-      Traceback (most recent call last):
-        File: "/usr/bin/flake8", line 5, in <module>
-          from pkg_resources import load_entry_point
-      ImportError: No module named pkg_resources
-
-   that means Flake8 couldn't find setuptools in your ``PYTHONPATH``.
 
 ^^^^^^^^^^^^^^^^^^^
 Documentation Tests
@@ -223,8 +262,7 @@ documentation. In order to prevent things like broken links and missing imports,
 we added documentation tests that build the documentation and fail if there
 are any warning or error messages.
 
-Building the documentation requires several dependencies, all of which can be
-installed with Spack:
+Building the documentation requires several dependencies:
 
 * sphinx
 * sphinxcontrib-programoutput
@@ -234,20 +272,25 @@ installed with Spack:
 * mercurial
 * subversion
 
+All of these can be installed with Spack, e.g.
+
+.. code-block:: console
+
+   $ spack install py-sphinx py-sphinxcontrib-programoutput py-sphinx-rtd-theme graphviz git mercurial subversion
+
 .. warning::
 
    Sphinx has `several required dependencies <https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/py-sphinx/package.py>`_.
-   If you installed ``py-sphinx`` with Spack, make sure to add all of these
-   dependencies to your ``PYTHONPATH``. The easiest way to do this is to run:
+   If you're using a ``python`` from Spack and you installed
+   ``py-sphinx`` and friends, you need to make them available to your
+   ``python``. The easiest way to do this is to run:
 
    .. code-block:: console
 
-      $ spack activate py-sphinx
-      $ spack activate py-sphinx-rtd-theme
-      $ spack activate py-sphinxcontrib-programoutput
+      $ spack load py-sphinx py-sphinx-rtd-theme py-sphinxcontrib-programoutput
 
-   so that all of the dependencies are symlinked to a central location.
-   If you see an error message like:
+   so that all of the dependencies are added to PYTHONPATH.  If you see an error message
+   like:
 
    .. code-block:: console
 
@@ -262,66 +305,224 @@ Once all of the dependencies are installed, you can try building the documentati
 
 .. code-block:: console
 
-   $ cd "$SPACK_ROOT/lib/spack/docs"
+   $ cd path/to/spack/lib/spack/docs/
    $ make clean
    $ make
 
-If you see any warning or error messages, you will have to correct those before
-your PR is accepted.
+If you see any warning or error messages, you will have to correct those before your PR
+is accepted. If you are editing the documentation, you should be running the
+documentation tests to make sure there are no errors. Documentation changes can result
+in some obfuscated warning messages. If you don't understand what they mean, feel free
+to ask when you submit your PR.
+
+.. _spack-builders-and-pipelines:
+
+^^^^^^^^^
+GitLab CI
+^^^^^^^^^
+
+""""""""""""""""""
+Build Cache Stacks
+""""""""""""""""""
+
+Spack welcomes the contribution of software stacks of interest to the community. These
+stacks are used to test package recipes and generate publicly available build caches.
+Spack uses GitLab CI for managing the orchestration of build jobs.
+
+GitLab Entry Point
+~~~~~~~~~~~~~~~~~~
+
+Add stack entrypoint to the ``share/spack/gitlab/cloud_pipelines/.gitlab-ci.yml``. There
+are two stages required for each new stack, the generation stage and the build stage.
+
+The generate stage is defined using the job template ``.generate`` configured with
+environment variables defining the name of the stack in ``SPACK_CI_STACK_NAME`` and the
+platform (``SPACK_TARGET_PLATFORM``) and architecture (``SPACK_TARGET_ARCH``) configuration,
+and the tags associated with the class of runners to build on.
 
 .. note::
 
-   There is also a ``run-doc-tests`` script in ``share/spack/qa``. The only
-   difference between running this script and running ``make`` by hand is that
-   the script will exit immediately if it encounters an error or warning. This
-   is necessary for Travis CI. If you made a lot of documentation changes, it is
-   much quicker to run ``make`` by hand so that you can see all of the warnings
-   at once.
+    The ``SPACK_CI_STACK_NAME`` must match the name of the directory containing the
+    stacks ``spack.yaml``.
 
-If you are editing the documentation, you should obviously be running the
-documentation tests. But even if you are simply adding a new package, your
-changes could cause the documentation tests to fail:
 
-.. code-block:: console
+.. note::
 
-   package_list.rst:8745: WARNING: Block quote ends without a blank line; unexpected unindent.
+    The platform and architecture variables are specified in order to select the
+    correct configurations from the generic configurations used in Spack CI. The
+    configurations currently available are:
 
-At first, this error message will mean nothing to you, since you didn't edit
-that file. Until you look at line 8745 of the file in question:
+    * ``.cray_rhel_zen4``
+    * ``.cray_sles_zen4``
+    * ``.darwin_aarch64``
+    * ``.darwin_x86_64``
+    * ``.linux_aarch64``
+    * ``.linux_icelake``
+    * ``.linux_neoverse_n1``
+    * ``.linux_neoverse_v1``
+    * ``.linux_neoverse_v2``
+    * ``.linux_power``
+    * ``.linux_skylake``
+    * ``.linux_x86_64``
+    * ``.linux_x86_64_v4``
 
-.. code-block:: rst
+    New configurations can be added to accommodate new platforms and architectures.
 
-   Description:
-      NetCDF is a set of software libraries and self-describing, machine-
-     independent data formats that support the creation, access, and sharing
-     of array-oriented scientific data.
 
-Our documentation includes :ref:`a list of all Spack packages <package-list>`.
-If you add a new package, its docstring is added to this page. The problem in
-this case was that the docstring looked like:
+The build stage is defined as a trigger job that consumes the GitLab CI pipeline generated in
+the generate stage for this stack. Build stage jobs use the ``.build`` job template which
+handles the basic configuration.
 
-.. code-block:: python
+An example entry point for a new stack called ``my-super-cool-stack``
 
-   class Netcdf(Package):
-       """
-       NetCDF is a set of software libraries and self-describing,
-       machine-independent data formats that support the creation,
-       access, and sharing of array-oriented scientific data.
-       """
+.. code-block:: yaml
 
-Docstrings cannot start with a newline character, or else Sphinx will complain.
-Instead, they should look like:
+    .my-super-cool-stack:
+      extends: [ ".linux_x86_64_v3" ]
+      variables:
+        SPACK_CI_STACK_NAME: my-super-cool-stack
+        tags: [ "all", "tags", "your", "job", "needs"]
 
-.. code-block:: python
+    my-super-cool-stack-generate:
+      extends: [ ".generate", ".my-super-cool-stack" ]
+      image: my-super-cool-stack-image:0.0.1
 
-   class Netcdf(Package):
-       """NetCDF is a set of software libraries and self-describing,
-       machine-independent data formats that support the creation,
-       access, and sharing of array-oriented scientific data."""
+    my-super-cool-stack-build:
+      extends: [ ".build", ".my-super-cool-stack" ]
+      trigger:
+        include:
+          - artifact: jobs_scratch_dir/cloud-ci-pipeline.yml
+            job: my-super-cool-stack-generate
+        strategy: depend
+      needs:
+        - artifacts: True
+          job: my-super-cool-stack-generate
 
-Documentation changes can result in much more obfuscated warning messages.
-If you don't understand what they mean, feel free to ask when you submit
-your PR.
+
+Stack Configuration
+~~~~~~~~~~~~~~~~~~~
+
+The stack configuration is a spack environment file with two additional sections added.
+Stack configurations should be located in ``share/spack/gitlab/cloud_pipelines/stacks/<stack_name>/spack.yaml``.
+
+The ``ci`` section is generally used to define stack specific mappings such as image or tags.
+For more information on what can go into the ``ci`` section refer to the docs on pipelines.
+
+The ``cdash`` section is used for defining where to upload the results of builds. Spack configures
+most of the details for posting pipeline results to
+`cdash.spack.io <https://cdash.spack.io/index.php?project=Spack+Testing>`_. The only
+requirement in the stack configuration is to define a ``build-group`` that is unique,
+this is usually the long name of the stack.
+
+An example stack that builds ``zlib``.
+
+.. code-block:: yaml
+
+    spack:
+      view: false
+      packages:
+        all:
+          require: ["%gcc", "target=x86_64_v3"]
+      specs:
+      - zlib
+
+      ci:
+        pipeline-gen
+        - build-job:
+            image: my-super-cool-stack-image:0.0.1
+
+      cdash:
+        build-group: My Super Cool Stack
+
+.. note::
+
+    The ``image`` used in the ``*-generate`` job must match exactly the ``image`` used in the ``build-job``.
+    When the images do not match the build job may fail.
+
+
+"""""""""""""""""""
+Registering Runners
+"""""""""""""""""""
+
+Contributing computational resources to Spack's CI build farm is one way to help expand the
+capabilities and offerings of the public Spack build caches. Currently, Spack utilizes linux runners
+from AWS, Google, and the University of Oregon (UO).
+
+Runners require three key peices:
+* Runner Registration Token
+* Accurate tags
+* OIDC Authentication script
+* GPG keys
+
+
+Minimum GitLab Runner Version: ``16.1.0``
+`Intallation instructions <https://docs.gitlab.com/runner/install/>`_
+
+Registration Token
+~~~~~~~~~~~~~~~~~~
+
+The first step to contribute new runners is to open an issue in the `spack infrastructure <https://github.com/spack/spack-infrastructure/issues/new?assignees=&labels=runner-registration&projects=&template=runner_registration.yml>`_
+project. This will be reported to the spack infrastructure team who will guide users through the process
+of registering new runners for Spack CI.
+
+The information needed to register a runner is the motivation for the new resources, a semi-detailed description of
+the runner, and finallly the point of contact for maintaining the software on the runner.
+
+The point of contact will then work with the infrastruture team to obtain runner registration token(s) for interacting with
+with Spack's GitLab instance. Once the runner is active, this point of contact will also be responsible for updating the
+GitLab runner software to keep pace with Spack's Gitlab.
+
+Tagging
+~~~~~~~
+
+In the initial stages of runner registration it is important to **exclude** the special tag ``spack``. This will prevent
+the new runner(s) from being picked up for production CI jobs while it is configured and evaluated. Once it is determined
+that the runner is ready for production use the ``spack`` tag will be added.
+
+Because gitlab has no concept of tag exclustion, runners that provide specialized resource also require specialized tags.
+For example, a basic CPU only x86_64 runner may have a tag ``x86_64`` associated with it. However, a runner containing an
+CUDA capable GPU may have the tag ``x86_64-cuda`` to denote that it should only be used for packages that will benefit from
+a CUDA capable resource.
+
+OIDC
+~~~~
+
+Spack runners use OIDC authentication for connecting to the appropriate AWS bucket
+which is used for coordinating the communication of binaries between build jobs. In
+order to configure OIDC authentication, Spack CI runners use a python script with minimal
+dependencies. This script can be configured for runners as seen here using the ``pre_build_script``.
+
+.. code-block:: toml
+
+    [[runners]]
+      pre_build_script = """
+      echo 'Executing Spack pre-build setup script'
+
+      for cmd in "${PY3:-}" python3 python; do
+        if command -v > /dev/null "$cmd"; then
+          export PY3="$(command -v "$cmd")"
+          break
+        fi
+      done
+
+      if [ -z "${PY3:-}" ]; then
+        echo "Unable to find python3 executable"
+        exit 1
+      fi
+
+      $PY3 -c "import urllib.request;urllib.request.urlretrieve('https://raw.githubusercontent.com/spack/spack-infrastructure/main/scripts/gitlab_runner_pre_build/pre_build.py', 'pre_build.py')"
+      $PY3 pre_build.py > envvars
+
+      . ./envvars
+      rm -f envvars
+      unset GITLAB_OIDC_TOKEN
+      """
+
+GPG Keys
+~~~~~~~~
+
+Runners that may be utilized for ``protected`` CI require the registration of an intermediate signing key that
+can be used to sign packages. For more information on package signing read :ref:`key_architecture`.
 
 --------
 Coverage
@@ -332,13 +533,13 @@ coverage. This helps us tell what percentage of lines of code in Spack are
 covered by unit tests. Although code covered by unit tests can still contain
 bugs, it is much less error prone than code that is not covered by unit tests.
 
-Codecov provides `browser extensions <https://github.com/codecov/browser-extension>`_
-for Google Chrome, Firefox, and Opera. These extensions integrate with GitHub
+Codecov provides `browser extensions <https://github.com/codecov/sourcegraph-codecov>`_
+for Google Chrome and Firefox. These extensions integrate with GitHub
 and allow you to see coverage line-by-line when viewing the Spack repository.
 If you are new to Spack, a great way to get started is to write unit tests to
 increase coverage!
 
-Unlike with Travis, Codecov tests are not required to pass in order for your
+Unlike with CI on Github Actions Codecov tests are not required to pass in order for your
 PR to be merged. If you modify core Spack libraries, we would greatly
 appreciate unit tests that cover these changed lines. Otherwise, we have no
 way of knowing whether or not your changes introduce a bug. If you make

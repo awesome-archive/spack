@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Grnboost(Package):
@@ -17,26 +16,31 @@ class Grnboost(Package):
 
     homepage = "https://github.com/aertslab/GRNBoost"
 
-    version('2017-10-9', git='https://github.com/aertslab/GRNBoost.git',
-            commit='26c836b3dcbb85852d3c6f4b8340e8655434da02')
+    license("BSD-3-Clause")
 
-    depends_on('sbt', type='build')
-    depends_on('java', type=('build', 'run'))
-    depends_on('xgboost+jvm-packages', type='run')
-    depends_on('spark+hadoop', type='run')
+    version(
+        "2017-10-9",
+        git="https://github.com/aertslab/GRNBoost.git",
+        commit="26c836b3dcbb85852d3c6f4b8340e8655434da02",
+    )
 
-    def setup_environment(self, spack_env, run_env):
-        grnboost_jar = join_path(self.prefix, 'target',
-                                 'scala-2.11', 'GRNBoost.jar')
-        xgboost_version = self.spec['xgboost'].version.string
-        xgboost_jar = join_path(self.spec['xgboost'].prefix,
-                                'xgboost4j-' + xgboost_version + '.jar')
-        run_env.set('GRNBOOST_JAR', grnboost_jar)
-        run_env.set('JAVA_HOME', self.spec['java'].prefix)
-        run_env.set('CLASSPATH', xgboost_jar)
-        run_env.set('XGBOOST_JAR', xgboost_jar)
+    depends_on("sbt", type="build")
+    depends_on("java", type=("build", "run"))
+    depends_on("xgboost", type="run")
+    depends_on("spark+hadoop", type="run")
+
+    def setup_run_environment(self, env):
+        grnboost_jar = join_path(self.prefix, "target", "scala-2.11", "GRNBoost.jar")
+        xgboost_version = self.spec["xgboost"].version.string
+        xgboost_jar = join_path(
+            self.spec["xgboost"].prefix, "xgboost4j-" + xgboost_version + ".jar"
+        )
+        env.set("GRNBOOST_JAR", grnboost_jar)
+        env.set("JAVA_HOME", self.spec["java"].prefix)
+        env.set("CLASSPATH", xgboost_jar)
+        env.set("XGBOOST_JAR", xgboost_jar)
 
     def install(self, spec, prefix):
-        sbt = which('sbt')
-        sbt('assembly')
-        install_tree('target', prefix.target)
+        sbt = which("sbt")
+        sbt("assembly")
+        install_tree("target", prefix.target)

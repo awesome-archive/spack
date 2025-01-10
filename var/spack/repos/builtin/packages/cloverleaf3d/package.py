@@ -1,69 +1,85 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 
-import glob
-
-from spack import *
+from spack.package import *
 
 
 class Cloverleaf3d(MakefilePackage):
     """Proxy Application. CloverLeaf3D is 3D version of the
-       CloverLeaf mini-app. CloverLeaf is a mini-app that solves
-       the compressible Euler equations on a Cartesian grid,
-       using an explicit, second-order accurate method.
+    CloverLeaf mini-app. CloverLeaf is a mini-app that solves
+    the compressible Euler equations on a Cartesian grid,
+    using an explicit, second-order accurate method.
     """
 
-    homepage = "http://uk-mac.github.io/CloverLeaf3D/"
-    url      = "http://mantevo.org/downloads/releaseTarballs/miniapps/CloverLeaf3D/CloverLeaf3D-1.0.tar.gz"
+    homepage = "https://uk-mac.github.io/CloverLeaf3D/"
+    url = "https://downloads.mantevo.org/releaseTarballs/miniapps/CloverLeaf3D/CloverLeaf3D-1.0.tar.gz"
 
-    tags = ['proxy-app']
+    tags = ["proxy-app"]
 
-    version('1.0', '2e86cadd7612487f9da4ddeb1a6de939')
+    maintainers("s1913388")
 
-    variant('openacc', default=False, description='Enable OpenACC Support')
+    license("LGPL-3.0-or-later")
 
-    depends_on('mpi')
+    version("1.0", sha256="78d591728c61bdfd6175b3930df7652e09ed04fbcd01b3fc86fb2aa0f237a8ef")
+
+    depends_on("c", type="build")  # generated
+    depends_on("cxx", type="build")  # generated
+    depends_on("fortran", type="build")  # generated
+
+    variant("opencl", default=False, description="Enable OpenCL Support")
+
+    variant("openacc", default=False, description="Enable OpenACC Support")
+
+    depends_on("mpi")
 
     @property
     def type_of_build(self):
-        build = 'ref'
+        build = "ref"
 
-        if '+openacc' in self.spec:
-            build = 'OpenACC'
+        if self.spec.satisfies("+opencl"):
+            build = "OpenCL"
+        elif self.spec.satisfies("+openacc"):
+            build = "OpenACC"
 
         return build
 
     @property
     def build_targets(self):
         targets = [
-            'MPI_COMPILER={0}'.format(self.spec['mpi'].mpifc),
-            'C_MPI_COMPILER={0}'.format(self.spec['mpi'].mpicc),
-            '--directory=CloverLeaf3D_{0}'.format(self.type_of_build)
+            "MPI_COMPILER={0}".format(self.spec["mpi"].mpifc),
+            "C_MPI_COMPILER={0}".format(self.spec["mpi"].mpicc),
+            "--directory=CloverLeaf3D_{0}".format(self.type_of_build),
         ]
 
-        if '%gcc' in self.spec:
-            targets.append('COMPILER=GNU')
-            targets.append('FLAGS_GNU=')
-            targets.append('CFLAGS_GNU=')
-        elif '%cce' in self.spec:
-            targets.append('COMPILER=CRAY')
-            targets.append('FLAGS_CRAY=')
-            targets.append('CFLAGS_CRAY=')
-        elif '%intel' in self.spec:
-            targets.append('COMPILER=INTEL')
-            targets.append('FLAGS_INTEL=')
-            targets.append('CFLAGS_INTEL=')
-        elif '%pgi' in self.spec:
-            targets.append('COMPILER=PGI')
-            targets.append('FLAGS_PGI=')
-            targets.append('CFLAGS_PGI=')
-        elif '%xl' in self.spec:
-            targets.append('COMPILER=XLF')
-            targets.append('FLAGS_XLF=')
-            targets.append('CFLAGS_XLF=')
+        if self.spec.satisfies("%gcc"):
+            targets.append("COMPILER=GNU")
+            targets.append("FLAGS_GNU=-O3 -funroll-loops")
+            targets.append("CFLAGS_GNU=-O3 -funroll-loops")
+            targets.append("OMP_GNU=-fopenmp")
+        elif self.spec.satisfies("%cce"):
+            targets.append("COMPILER=CRAY")
+            targets.append("FLAGS_CRAY=")
+            targets.append("CFLAGS_CRAY=")
+        elif self.spec.satisfies("%intel"):
+            targets.append("COMPILER=INTEL")
+            targets.append("FLAGS_INTEL=")
+            targets.append("CFLAGS_INTEL=")
+        elif self.spec.satisfies("%xl"):
+            targets.append("COMPILER=XLF")
+            targets.append("FLAGS_XLF=")
+            targets.append("CFLAGS_XLF=")
+        elif self.spec.satisfies("%arm"):
+            targets.append("COMPILER=ARM")
+            targets.append("FLAGS_ARM=-O3 -funroll-loops")
+            targets.append("CFLAGS_ARM=-O3 -funroll-loops")
+            targets.append("OMP_ARM=-fopenmp")
+        elif self.spec.satisfies("%nvhpc"):
+            targets.append("COMPILER=NVHPC")
+            targets.append("FLAGS_NVHPC=-O3 -fast")
+            targets.append("CFLAGS_NVHPC=-O3 -fast")
+            targets.append("OMP_NVHPC=-mp=multicore")
 
         return targets
 
@@ -72,13 +88,8 @@ class Cloverleaf3d(MakefilePackage):
         mkdirp(prefix.bin)
         mkdirp(prefix.doc.samples)
 
-        install('README.md', prefix.doc)
+        install("README.md", prefix.doc)
 
-        install('CloverLeaf3D_{0}/clover_leaf'.format(self.type_of_build),
-                prefix.bin)
-        install('CloverLeaf3D_{0}/clover.in'.format(self.type_of_build),
-                prefix.bin)
-
-        for f in glob.glob(
-                'CloverLeaf3D_{0}/*.in'.format(self.type_of_build)):
-            install(f, prefix.doc.samples)
+        install("CloverLeaf3D_{0}/clover_leaf".format(self.type_of_build), prefix.bin)
+        install("CloverLeaf3D_{0}/clover.in".format(self.type_of_build), prefix.bin)
+        install("CloverLeaf3D_{0}/*.in".format(self.type_of_build), prefix.doc.samples)

@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Ragel(AutotoolsPackage):
@@ -15,10 +14,16 @@ class Ragel(AutotoolsPackage):
     recognition of a regular language. Code embedding is done using
     inline operators that do not disrupt the regular language syntax.
     """
-    homepage = "http://www.colm.net/open-source/ragel"
-    git      = "git://colm.net/ragel.git"
-    url      = "http://www.colm.net/files/ragel/ragel-6.10.tar.gz"
 
-    version('6.10', '748cae8b50cffe9efcaa5acebc6abf0d')
+    homepage = "https://www.colm.net/open-source/ragel"
+    git = "git://colm.net/ragel.git"
+    url = "https://www.colm.net/files/ragel/ragel-6.10.tar.gz"
 
-    depends_on('colm', type='build')
+    license("GPL-2.0-or-later")
+
+    version("6.10", sha256="5f156edb65d20b856d638dd9ee2dfb43285914d9aa2b6ec779dac0270cd56c3f")
+
+    depends_on("c", type="build")  # generated
+    depends_on("cxx", type="build")  # generated
+
+    depends_on("colm", type="build")

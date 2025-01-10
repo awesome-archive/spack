@@ -1,10 +1,13 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-import sys
-from spack import *
+import os
+import re
+
+import spack.fetch_strategy
+from spack.package import *
+from spack.util.environment import is_system_path
 
 
 class Git(AutotoolsPackage):
@@ -13,185 +16,167 @@ class Git(AutotoolsPackage):
     projects with speed and efficiency.
     """
 
-    homepage = "http://git-scm.com"
-    url      = "https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.12.0.tar.gz"
+    homepage = "https://git-scm.com"
+    url = "https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.12.0.tar.gz"
+    maintainers("jennfshr")
 
-    # In order to add new versions here, add a new list entry with:
-    # * version: {version}
-    # * sha256: the sha256sum of the git-{version}.tar.gz
-    # * sha256_manpages: the sha256sum of the corresponding manpage from
-    #       https://www.kernel.org/pub/software/scm/git/git-manpages-{version}.tar.gz
-    # You can find the source here: https://mirrors.edge.kernel.org/pub/software/scm/git/sha256sums.asc
+    tags = ["build-tools"]
 
-    releases = [
-        {
-            'version': '2.21.0',
-            'sha256': '85eca51c7404da75e353eba587f87fea9481ba41e162206a6f70ad8118147bee',
-            'sha256_manpages': '14c76ebb4e31f9e55cf5338a04fd3a13bced0323cd51794ccf45fc74bd0c1080'
-        },
-        {
-            'version': '2.20.1',
-            'sha256': 'edc3bc1495b69179ba4e272e97eff93334a20decb1d8db6ec3c19c16417738fd',
-            'sha256_manpages': 'e9c123463abd05e142defe44a8060ce6e9853dfd8c83b2542e38b7deac4e6d4c'
-        },
-        {
-            'version': '2.19.2',
-            'sha256': 'db893ad69c9ac9498b09677c5839787eba2eb3b7ef2bc30bfba7e62e77cf7850',
-            'sha256_manpages': '60334ecd59ee10319af4a7815174d10991d1afabacd3b3129d589f038bf25542'
-        },
-        {
-            'version': '2.19.1',
-            'sha256': 'ec4dc96456612c65bf6d944cee9ac640145ec7245376832b781cb03e97cbb796',
-            'sha256_manpages': 'bd27f58dc90a661e3080b97365eb7322bfa185de95634fc59d98311925a7d894'
-        },
-        {
-            'version': '2.18.0',
-            'sha256': '94faf2c0b02a7920b0b46f4961d8e9cad08e81418614102898a55f980fa3e7e4',
-            'sha256_manpages': '6cf38ab3ad43ccdcd6a73ffdcf2a016d56ab6b4b240a574b0bb96f520a04ff55'
-        },
-        {
-            'version': '2.17.1',
-            'sha256': 'ec6452f0c8d5c1f3bcceabd7070b8a8a5eea11d4e2a04955c139b5065fd7d09a',
-            'sha256_manpages': '9732053c1a618d2576c1751d0249e43702f632a571f84511331882beb360677d'
-        },
-        {
-            'version': '2.17.0',
-            'sha256': '7a0cff35dbb14b77dca6924c33ac9fe510b9de35d5267172490af548ec5ee1b8',
-            'sha256_manpages': '41b58c68e90e4c95265c75955ddd5b68f6491f4d57b2f17c6d68e60bbb07ba6a'
-        },
-        {
-            'version': '2.15.1',
-            'sha256': '85fca8781a83c96ba6db384cc1aa6a5ee1e344746bafac1cbe1f0fe6d1109c84',
-            'sha256_manpages': '472454c494c9a7f50ad38060c3eec372f617de654b20f3eb3be59fc17a683fa1',
-        },
-        {
-            'version': '2.14.1',
-            'sha256': '01925349b9683940e53a621ee48dd9d9ac3f9e59c079806b58321c2cf85a4464',
-            'sha256_manpages': '8c5810ce65d44cd333327d3a115c5b462712a2f81225d142e07bd889ad8dc0e0',
-        },
-        {
-            'version': '2.13.0',
-            'sha256': '9f2fa8040ebafc0c2caae4a9e2cb385c6f16c0525bcb0fbd84938bc796372e80',
-            'sha256_manpages': 'e764721796cad175a4cf9a4afe7fb4c4fc57582f6f9a6e214239498e0835355b',
-        },
-        {
-            'version': '2.12.2',
-            'sha256': 'd9c6d787a24670d7e5100db2367c250ad9756ef8084fb153a46b82f1d186f8d8',
-            'sha256_manpages': '6e7ed503f1190734e57c9427df356b42020f125fa36ab0478777960a682adf50',
-        },
-        {
-            'version': '2.12.1',
-            'sha256': '65d62d10caf317fc1daf2ca9975bdb09dbff874c92d24f9529d29a7784486b43',
-            'sha256_manpages': '35e46b8acd529ea671d94035232b1795919be8f3c3a363ea9698f1fd08d7d061',
-        },
-        {
-            'version': '2.12.0',
-            'sha256': '882f298daf582a07c597737eb4bbafb82c6208fe0e73c047defc12169c221a92',
-            'sha256_manpages': '1f7733a44c59f9ae8dd321d68a033499a76c82046025cc2a6792299178138d65',
-        },
-        {
-            'version': '2.11.1',
-            'sha256': 'a1cdd7c820f92c44abb5003b36dc8cb7201ba38e8744802399f59c97285ca043',
-            'sha256_manpages': 'ee567e7b0f95333816793714bb31c54e288cf8041f77a0092b85e62c9c2974f9',
-        },
-        {
-            'version': '2.11.0',
-            'sha256': 'd3be9961c799562565f158ce5b836e2b90f38502d3992a115dfb653d7825fd7e',
-            'sha256_manpages': '437a0128acd707edce24e1a310ab2f09f9a09ee42de58a8e7641362012dcfe22',
-        },
-        {
-            'version': '2.9.3',
-            'sha256': 'a252b6636b12d5ba57732c8469701544c26c2b1689933bd1b425e603cbb247c0',
-            'sha256_manpages': '8ea1a55b048fafbf0c0c6fcbca4b5b0f5e9917893221fc7345c09051d65832ce',
-        },
-        {
-            'version': '2.9.2',
-            'sha256': '3cb09a3917c2d8150fc1708f3019cf99a8f0feee6cd61bba3797e3b2a85be9dc',
-            'sha256_manpages': 'ac5c600153d1e4a1c6494e250cd27ca288e7667ad8d4ea2f2386f60ba1b78eec',
-        },
-        {
-            'version': '2.9.1',
-            'sha256': 'c2230873bf77f93736473e6a06501bf93eed807d011107de6983dc015424b097',
-            'sha256_manpages': '324f5f173f2bd50b0102b66e474b81146ccc078d621efeb86d7f75e3c1de33e6',
-        },
-        {
-            'version': '2.9.0',
-            'sha256': 'bff7560f5602fcd8e37669e0f65ef08c6edc996e4f324e4ed6bb8a84765e30bd',
-            'sha256_manpages': '35ba69a8560529aa837e395a6d6c8d42f4d29b40a3c1cc6e3dc69bb1faadb332',
-        },
-        {
-            'version': '2.8.4',
-            'sha256': '626e319f8a24fc0866167ea5f6bf3e2f38f69d6cb2e59e150f13709ca3ebf301',
-            'sha256_manpages': '953a8eadaf4ae96dbad2c3ec12384c677416843917ef83d94b98367ffd55afc0',
-        },
-        {
-            'version': '2.8.3',
-            'sha256': '2dad50c758339d6f5235309db620e51249e0000ff34aa2f2acbcb84c2123ed09',
-            'sha256_manpages': '2dad50c758339d6f5235309db620e51249e0000ff34aa2f2acbcb84c2123ed09',
-        },
-        {
-            'version': '2.8.2',
-            'sha256': 'a029c37ee2e0bb1efea5c4af827ff5afdb3356ec42fc19c1d40216d99e97e148',
-            'sha256_manpages': '82d322211aade626d1eb3bcf3b76730bfdd2fcc9c189950fb0a8bdd69c383e2f',
-        },
-        {
-            'version': '2.8.1',
-            'sha256': 'cfc66324179b9ed62ee02833f29d39935f4ab66874125a3ab9d5bb9055c0cb67',
-            'sha256_manpages': 'df46de0c172049f935cc3736361b263c5ff289b77077c73053e63ae83fcf43f4',
-        },
-        {
-            'version': '2.8.0',
-            'sha256': '2c6eee5506237e0886df9973fd7938a1b2611ec93d07f64ed3447493ebac90d1',
-            'sha256_manpages': '2c48902a69df3bec3b8b8f0350a65fd1b662d2f436f0e64d475ecd1c780767b6',
-        },
-        {
-            'version': '2.7.3',
-            'sha256': '30d067499b61caddedaf1a407b4947244f14d10842d100f7c7c6ea1c288280cd',
-            'sha256_manpages': '84b487c9071857ab0f15f11c4a102a583d59b524831cda0dc0954bd3ab73920b',
-        },
-        {
-            'version': '2.7.1',
-            'sha256': 'b4ab42798b7fb038eaefabb0c32ce9dbde2919103e5e2a35adc35dd46258a66f',
-            'sha256_manpages': '0313cf4d283336088883d8416692fb6c547512233e11dbf06e5b925b7e762d61',
-        },
-    ]
+    executables = ["^git$"]
 
-    for release in releases:
-        version(release['version'], sha256=release['sha256'])
+    license("GPL-2.0-only")
+
+    # Every new git release comes with a corresponding manpage resource:
+    # https://www.kernel.org/pub/software/scm/git/git-manpages-{version}.tar.gz
+    # https://mirrors.edge.kernel.org/pub/software/scm/git/sha256sums.asc
+    version("2.47.0", sha256="a84a7917e0ab608312834413f01fc01edc7844f9f9002ba69f3b4f4bcb8d937a")
+    version("2.46.2", sha256="65c5689fd44f1d09de7fd8c44de7fef074ddd69dda8b8503d44afb91495ecbce")
+    version("2.45.2", sha256="98b26090ed667099a3691b93698d1e213e1ded73d36a2fde7e9125fce28ba234")
+    version("2.44.2", sha256="f0655e81c5ecfeef7440aa4fcffa1c1a77eaccf764d6fe29579e9a06eac2cd04")
+    version("2.43.5", sha256="324c3b85d668e6afe571b3502035848e4b349dead35188e2b8ab1b96c0cd45ff")
+    version("2.42.3", sha256="f42a8e8f6c0add4516f9e4607554c8ad698161b7d721b82073fe315a59621961")
+    version("2.41.2", sha256="481aa0a15aa37802880a6245b96c1570d7337c44700d5d888344cd6d43d85306")
+    version("2.40.3", sha256="b3dc96b20edcdbe6bea7736ea55bb80babf683d126cc7f353ed4e3bc304cd7da")
+    version("2.39.5", sha256="ca0ec03fb2696f552f37135a56a0242fa062bd350cb243dc4a15c86f1cafbc99")
+
+    # Deprecated versions (https://groups.google.com/g/git-packagers/c/x6-nKLV20aE)
+    version(
+        "2.45.1",
+        sha256="10acb581993061e616be9c5674469335922025a666318e0748cb8306079fef24",
+        deprecated=True,
+    )
+    version(
+        "2.44.1",
+        sha256="118214bb8d7ba971a62741416e757562b8f5451cefc087a407e91857897c92cc",
+        deprecated=True,
+    )
+    version(
+        "2.43.4",
+        sha256="bfd717dc31922f718232a25a929d199e26146df5e876fdf0ff90a7cc95fa06e2",
+        deprecated=True,
+    )
+    version(
+        "2.42.2",
+        sha256="3b24b712fa6e9a3da5b7d3e68b1854466905aadb93a43088a38816bcc3b9d043",
+        deprecated=True,
+    )
+    version(
+        "2.41.1",
+        sha256="06d2a681aa7f1bdb6e7f7101631407e7412faa534e1fa0eb6fdcb9975d867d31",
+        deprecated=True,
+    )
+    version(
+        "2.40.2",
+        sha256="1dcdfbb4eeb3ef2c2d9154f888d4a6f0cf19f19acad76f0d32e725e7bc147753",
+        deprecated=True,
+    )
+    version(
+        "2.39.4",
+        sha256="b895ed2b5d98fd3dcfde5807f16d5fb17c4f83044e7d08e597ae13de222f0d26",
+        deprecated=True,
+    )
+
+    # Deprecated versions (see https://github.blog/2024-05-14-securing-git-addressing-5-new-vulnerabilities/).
+    version(
+        "2.42.0",
+        sha256="34aedd54210d7216a55d642bbb4cfb22695b7610719a106bf0ddef4c82a8beed",
+        deprecated=True,
+    )
+    version(
+        "2.41.0",
+        sha256="c4a6a3dd1827895a80cbd824e14d94811796ae54037549e0da93f7b84cb45b9f",
+        deprecated=True,
+    )
+    version(
+        "2.40.1",
+        sha256="55511f10f3b1cdf5db4e0e3dea61819dfb67661b0507a5a2b061c70e4f87e14c",
+        deprecated=True,
+    )
+    version(
+        "2.39.3",
+        sha256="2f9aa93c548941cc5aff641cedc24add15b912ad8c9b36ff5a41b1a9dcad783e",
+        deprecated=True,
+    )
+
+    depends_on("c", type="build")  # generated
+
+    for _version, _sha256_manpage in {
+        "2.47.0": "1a6f1e775dfe324a9b521793cbd2b3bba546442cc2ac2106d4df33dea9005038",
+        "2.46.2": "4bc3774ee4597098977befa4ec30b0f2cbed3b59b756e7cbb59ce1738682d43a",
+        "2.45.2": "48c1e2e3ecbb2ce9faa020a19fcdbc6ce64ea25692111b5930686bc0bb4f0e7f",
+        "2.45.1": "d9098fd93a3c0ef242814fc856a99886ce31dae2ba457afc416ba4e92af8f8f5",
+        "2.44.2": "ee6a7238d5ede18fe21c0cc2131c7fbff1f871c25e2848892ee864d40baf7218",
+        "2.44.1": "8d80359e44cbcce256c1eb1389cb8e15ccfcd267fbb8df567d5ce19ce006eb42",
+        "2.43.5": "df3c3d0f0834959aa33005e6f8134c1e56ab01f34d1497ceb34b2dd8ec7d4de4",
+        "2.43.4": "99d3a0394a6093237123237fd6c0d3de1041d5ceaedc3bfc016807914275d3e2",
+        "2.42.3": "3c8c55dcbc3f59560c63e6ced400f7251e9a00d876d365cb4fe9be6b3c3e3713",
+        "2.42.2": "2ddfa2187fdaf9ab2b27c0ab043e46793127c26c82a824ffe980f006be049286",
+        "2.42.0": "51643c53d70ce15dde83b6da2bad76ba0c7bbcd4f944d7c378f03a15b9f2e1de",
+        "2.41.2": "a758988c81478a942e1593ecf11568b962506bff1119061bad04bd4149b40c2c",
+        "2.41.1": "7093ef7dacfa8cdb3c4689d8bc1f06186d9b2420bec49087a3a6a4dee26ddcec",
+        "2.41.0": "7b77c646b36d33c5c0f62677a147142011093270d6fd628ca38c42d5301f3888",
+        "2.40.3": "fa9b837e1e161ebdbbbfde27a883a90fe5f603ce1618086a384bccda59c47de5",
+        "2.40.2": "2c71f3f3e4801176f97708f2093756bce672ef260c6d95c255046e6727b3a031",
+        "2.40.1": "6bbde434121bd0bf8aa574c60fd9a162388383679bd5ddd99921505149ffd4c2",
+        "2.39.5": "16aac22749bd55d845c422068702781a9c89e6cdde7de1c3aa1dd0fb41aeae39",
+        "2.39.4": "fedd01dd22a15b84bcbcad68c1b37113ba2c64381c19b6c9f3aa9b2818e126dc",
+        "2.39.3": "c8377b5a3ff497d7e6377363c270931496e982509ff27a1e46956d6637671642",
+    }.items():
         resource(
-            name='git-manpages',
-            url="https://www.kernel.org/pub/software/scm/git/git-manpages-{0}.tar.gz".format(
-                release['version']),
-            sha256=release['sha256_manpages'],
-            placement='git-manpages',
-            when='@{0}'.format(release['version']))
+            name="git-manpages",
+            url=f"https://www.kernel.org/pub/software/scm/git/git-manpages-{_version}.tar.gz",
+            sha256=_sha256_manpage,
+            placement="git-manpages",
+            when=f"@{_version} +man",
+        )
 
-    variant('tcltk', default=False,
-            description='Gitk: provide Tcl/Tk in the run environment')
+    variant("tcltk", default=False, description="Gitk: provide Tcl/Tk in the run environment")
+    variant("svn", default=False, description="Provide SVN Perl dependency in run environment")
+    variant("perl", default=True, description="Do not use Perl scripts or libraries at all")
+    variant("nls", default=True, description="Enable native language support")
+    variant("man", default=True, description="Install manual pages")
+    variant("subtree", default=True, description="Add git-subtree command and capability")
 
-    depends_on('curl')
-    depends_on('expat')
-    depends_on('gettext')
-    depends_on('libiconv')
-    depends_on('openssl')
-    depends_on('pcre', when='@:2.13')
-    depends_on('pcre+jit', when='@2.14:')
-    depends_on('perl')
-    depends_on('zlib')
+    depends_on("autoconf", type="build")
+    depends_on("automake", type="build")
+    depends_on("libtool", type="build")
+    depends_on("m4", type="build")
+    depends_on("curl")
+    depends_on("expat")
+    depends_on("gettext", when="+nls")
+    depends_on("iconv")
+    depends_on("libidn2")
+    depends_on("openssl")
+    depends_on("pcre2")
+    depends_on("perl", when="+perl")
+    depends_on("zlib-api")
+    depends_on("openssh", type="run")
+    depends_on("perl-alien-svn", type="run", when="+svn")
+    depends_on("tk", type=("build", "link"), when="+tcltk")
 
-    depends_on('autoconf', type='build')
-    depends_on('automake', type='build')
-    depends_on('libtool',  type='build')
-    depends_on('m4',       type='build')
-    depends_on('tk',       type=('build', 'link'), when='+tcltk')
+    conflicts("+svn", when="~perl")
 
-    # See the comment in setup_environment re EXTLIBS.
+    @classmethod
+    def determine_version(cls, exe):
+        output = Executable(exe)("--version", output=str, error=str)
+        match = re.search(spack.fetch_strategy.GitFetchStrategy.git_version_re, output)
+        return match.group(1) if match else None
+
+    @classmethod
+    def determine_variants(cls, exes, version_str):
+        prefix = os.path.dirname(exes[0])
+        variants = ""
+        if "gitk" in os.listdir(prefix):
+            variants += "+tcltk"
+        else:
+            variants += "~tcltk"
+        return variants
+
+    # See the comment in setup_build_environment re EXTLIBS.
     def patch(self):
-        filter_file(r'^EXTLIBS =$',
-                    '#EXTLIBS =',
-                    'Makefile')
+        filter_file(r"^EXTLIBS =$", "#EXTLIBS =", "Makefile")
 
-    def setup_environment(self, spack_env, run_env):
+    def setup_build_environment(self, env):
         # We use EXTLIBS rather than LDFLAGS so that git's Makefile
         # inserts the information into the proper place in the link commands
         # (alongside the # other libraries/paths that configure discovers).
@@ -203,51 +188,134 @@ class Git(AutotoolsPackage):
         # The test avoids failures when git is an external package.
         # In that case the node in the DAG gets truncated and git DOES NOT
         # have a gettext dependency.
-        if 'gettext' in self.spec:
-            spack_env.append_flags('EXTLIBS', '-L{0} -lintl'.format(
-                self.spec['gettext'].prefix.lib))
-            spack_env.append_flags('CFLAGS', '-I{0}'.format(
-                self.spec['gettext'].prefix.include))
+        spec = self.spec
+        if spec.satisfies("+nls"):
+            if "intl" in spec["gettext"].libs.names:
+                extlib_bits = []
+                if not is_system_path(spec["gettext"].prefix):
+                    extlib_bits.append(spec["gettext"].libs.search_flags)
+                extlib_bits.append("-lintl")
+                env.append_flags("EXTLIBS", " ".join(extlib_bits))
+
+        if not self.spec["curl"].satisfies("libs=shared"):
+            curlconfig = which(os.path.join(self.spec["curl"].prefix.bin, "curl-config"))
+            # For configure step:
+            env.append_flags("LIBS", curlconfig("--static-libs", output=str).strip())
+            # For build step:
+            env.append_flags("EXTLIBS", curlconfig("--static-libs", output=str).strip())
+
+        if self.spec.satisfies("~perl"):
+            env.append_flags("NO_PERL", "1")
 
     def configure_args(self):
         spec = self.spec
 
         configure_args = [
-            '--with-curl={0}'.format(spec['curl'].prefix),
-            '--with-expat={0}'.format(spec['expat'].prefix),
-            '--with-iconv={0}'.format(spec['libiconv'].prefix),
-            '--with-libpcre={0}'.format(spec['pcre'].prefix),
-            '--with-openssl={0}'.format(spec['openssl'].prefix),
-            '--with-perl={0}'.format(spec['perl'].command.path),
-            '--with-zlib={0}'.format(spec['zlib'].prefix),
+            "--with-curl={0}".format(spec["curl"].prefix),
+            "--with-expat={0}".format(spec["expat"].prefix),
+            "--with-openssl={0}".format(spec["openssl"].prefix),
+            "--with-zlib={0}".format(spec["zlib-api"].prefix),
         ]
 
-        if '+tcltk' in self.spec:
-            configure_args.append('--with-tcltk={0}'.format(
-                self.spec['tk'].prefix.bin.wish))
+        if self.spec["iconv"].name == "libiconv":
+            configure_args.append(f"--with-iconv={self.spec['iconv'].prefix}")
+
+        if self.spec.satisfies("+perl"):
+            configure_args.append("--with-perl={0}".format(spec["perl"].command.path))
+
+        if self.spec.satisfies("^pcre"):
+            configure_args.append("--with-libpcre={0}".format(spec["pcre"].prefix))
+        if self.spec.satisfies("^pcre2"):
+            configure_args.append("--with-libpcre2={0}".format(spec["pcre2"].prefix))
+        if self.spec.satisfies("+tcltk"):
+            configure_args.append("--with-tcltk={0}".format(self.spec["tk"].prefix.bin.wish))
         else:
-            configure_args.append('--without-tcltk')
+            configure_args.append("--without-tcltk")
 
         return configure_args
 
-    @run_after('configure')
+    @run_after("configure")
     def filter_rt(self):
-        if sys.platform == 'darwin':
+        if self.spec.satisfies("platform=darwin"):
             # Don't link with -lrt; the system has no (and needs no) librt
-            filter_file(r' -lrt$', '', 'Makefile')
+            filter_file(r" -lrt$", "", "Makefile")
 
     def check(self):
-        make('test')
+        make("test")
 
-    @run_after('install')
+    def build(self, spec, prefix):
+        args = []
+        if self.spec.satisfies("~nls"):
+            args.append("NO_GETTEXT=1")
+        make(*args)
+
+        if spec.satisfies("platform=darwin"):
+            with working_dir("contrib/credential/osxkeychain"):
+                make()
+
+    def install(self, spec, prefix):
+        args = ["install"]
+        if self.spec.satisfies("~nls"):
+            args.append("NO_GETTEXT=1")
+        make(*args)
+
+        if spec.satisfies("platform=darwin"):
+            install(
+                "contrib/credential/osxkeychain/git-credential-osxkeychain",
+                join_path(prefix, "libexec", "git-core"),
+            )
+
+    @run_after("install")
     def install_completions(self):
-        install_tree('contrib/completion', self.prefix.share)
+        mkdirp(bash_completion_path(self.prefix))
+        install(
+            "contrib/completion/git-completion.bash",
+            join_path(bash_completion_path(self.prefix), "git"),
+        )
 
-    @run_after('install')
+        mkdirp(zsh_completion_path(self.prefix))
+        filter_file(
+            r"\$bash_completion\/git",
+            join_path(bash_completion_path(self.prefix), "git"),
+            "contrib/completion/git-completion.zsh",
+        )
+        install(
+            "contrib/completion/git-completion.zsh",
+            join_path(zsh_completion_path(self.prefix), "_git"),
+        )
+
+    @run_after("install")
     def install_manpages(self):
+        if self.spec.satisfies("~man"):
+            return
+
         prefix = self.prefix
 
-        with working_dir('git-manpages'):
-            install_tree('man1', prefix.share.man.man1)
-            install_tree('man5', prefix.share.man.man5)
-            install_tree('man7', prefix.share.man.man7)
+        with working_dir("git-manpages"):
+            install_tree("man1", prefix.share.man.man1)
+            install_tree("man5", prefix.share.man.man5)
+            install_tree("man7", prefix.share.man.man7)
+
+    @run_after("install")
+    def install_subtree(self):
+        if self.spec.satisfies("+subtree"):
+            with working_dir("contrib/subtree"):
+                make_args = ["V=1", "prefix={}".format(self.prefix.bin)]
+                make(" ".join(make_args))
+                install_args = ["V=1", "prefix={}".format(self.prefix.bin), "install"]
+                make(" ".join(install_args))
+                install("git-subtree", self.prefix.bin)
+
+    def setup_run_environment(self, env):
+        # Setup run environment if using SVN extension
+        # Libs from perl-alien-svn and apr-util are required in
+        # LD_LIBRARY_PATH
+        # TODO: extend to other platforms
+        if self.spec.satisfies("+svn platform=linux"):
+            perl_svn = self.spec["perl-alien-svn"]
+            env.prepend_path(
+                "LD_LIBRARY_PATH",
+                join_path(
+                    perl_svn.prefix, "lib", "perl5", "x86_64-linux-thread-multi", "Alien", "SVN"
+                ),
+            )

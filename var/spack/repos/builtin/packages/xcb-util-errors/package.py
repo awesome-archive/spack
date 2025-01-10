@@ -1,12 +1,11 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
-class XcbUtilErrors(AutotoolsPackage):
+class XcbUtilErrors(AutotoolsPackage, XorgPackage):
     """The XCB util modules provides a number of libraries which sit on top
     of libxcb, the core X protocol library, and some of the extension
     libraries. These experimental libraries provide convenience functions
@@ -14,12 +13,20 @@ class XcbUtilErrors(AutotoolsPackage):
     libraries also provide client-side code which is not strictly part of
     the X protocol but which have traditionally been provided by Xlib."""
 
-    homepage = "https://xcb.freedesktop.org/"
-    url      = "https://xcb.freedesktop.org/dist/xcb-util-errors-1.0.tar.gz"
+    homepage = "https://gitlab.freedesktop.org/xorg/lib/libxcb-errors"
+    xorg_mirror_path = "lib/xcb-util-errors-1.0.1.tar.xz"
 
-    version('1.0', 'dc4a6ce073a81a0b7e614a2988f275cc')
+    version("1.0.1", sha256="5628c87b984259ad927bacd8a42958319c36bdf4b065887803c9d820fb80f357")
+    version(
+        "1.0",
+        sha256="7752a722e580efdbada30632cb23aed35c18757399ac3b547b59fd7257cf5e33",
+        url="https://xcb.freedesktop.org/dist/xcb-util-errors-1.0.tar.gz",
+        deprecated=True,
+    )
 
-    depends_on('libxcb@1.4:')
+    depends_on("c", type="build")  # generated
 
-    depends_on('xcb-proto', type='build')
-    depends_on('pkgconfig', type='build')
+    depends_on("libxcb@1.4:")
+
+    depends_on("xcb-proto")
+    depends_on("pkgconfig", type="build")

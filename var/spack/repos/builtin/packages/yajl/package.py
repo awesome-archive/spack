@@ -1,17 +1,18 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Yajl(CMakePackage):
     """Yet Another JSON Library (YAJL)"""
 
-    homepage = "http://lloyd.github.io/yajl/"
-    url      = "https://github.com/lloyd/yajl/archive/2.1.0.zip"
-    git      = "https://github.com/lloyd/yajl.git"
+    homepage = "https://lloyd.github.io/yajl/"
+    url = "https://github.com/lloyd/yajl/archive/refs/tags/2.1.0.zip"
+    git = "https://github.com/lloyd/yajl.git"
 
-    version('develop', branch='master')
-    version('2.1.0', '5eb9c16539bf354b937fcb20e263d1eb')
+    license("MIT")
+
+    version("develop", branch="master")
+    version("2.1.0", sha256="7458c4ed10ebe52c54f57e741bbfde69c73495e76e0f6a45d6d1986cf24794bc")

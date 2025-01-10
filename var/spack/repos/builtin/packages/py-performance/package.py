@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyPerformance(PythonPackage):
@@ -14,12 +13,14 @@ class PyPerformance(PythonPackage):
     using whole applications when possible.
     """
 
-    homepage = 'http://pyperformance.readthedocs.io/'
-    url = 'https://github.com/python/performance/archive/0.6.1.tar.gz'
+    homepage = "http://pyperformance.readthedocs.io/"
+    url = "https://github.com/python/performance/archive/0.6.1.tar.gz"
 
-    version('0.6.1', '95477b584a284582b66c922a5335b427')
-    version('0.6.0', 'b93661e07668fa0b461236dca164eedf')
+    license("MIT")
 
-    depends_on('py-setuptools', type=('build', 'run'))
-    depends_on('py-six', type=('build', 'run'))
-    depends_on('py-perf', type=('build', 'run'))
+    version("0.6.1", sha256="cc48dd7579da2f4b0e4cff0c8220811f5ba7019493bb408819c1532acf53d13a")
+    version("0.6.0", sha256="4636e276445e96563f628e071cacd5df31dc587d83899e7d03fa8b31760f2cd2")
+
+    depends_on("py-setuptools", type=("build", "run"))
+    depends_on("py-six", type=("build", "run"))
+    depends_on("py-pyperf", type=("build", "run"))

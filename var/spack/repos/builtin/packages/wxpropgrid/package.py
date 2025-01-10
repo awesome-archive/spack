@@ -1,26 +1,31 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
-class Wxpropgrid(Package):
+class Wxpropgrid(Package, SourceforgePackage):
     """wxPropertyGrid is a property sheet control for wxWidgets. In
-       other words, it is a specialized two-column grid for editing
-       properties such as strings, numbers, flagsets, string arrays,
-       and colours."""
-    homepage = "http://wxpropgrid.sourceforge.net/"
-    url      = "http://prdownloads.sourceforge.net/wxpropgrid/wxpropgrid-1.4.15-src.tar.gz"
+    other words, it is a specialized two-column grid for editing
+    properties such as strings, numbers, flagsets, string arrays,
+    and colours."""
 
-    version('1.4.15', 'f44b5cd6fd60718bacfabbf7994f1e93')
+    homepage = "https://wxpropgrid.sourceforge.net/"
+    sourceforge_mirror_path = "wxpropgrid/wxpropgrid-1.4.15-src.tar.gz"
 
-    depends_on("wx")
+    version("1.4.15", sha256="f0c9a86656828f592c8e57d2c89401f07f0af6a45b17bbca3990e8d29121c2b8")
+
+    depends_on("cxx", type="build")  # generated
+
+    depends_on("wxwidgets")
 
     def install(self, spec, prefix):
-        configure("--prefix=%s" % prefix, "--with-wxdir=%s" %
-                  spec['wx'].prefix.bin, "--enable-unicode")
+        configure(
+            "--prefix=%s" % prefix,
+            "--with-wxdir=%s" % spec["wxwidgets"].prefix.bin,
+            "--enable-unicode",
+        )
 
         make()
         make("install")

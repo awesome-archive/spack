@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyEasybuildEasyblocks(PythonPackage):
@@ -11,9 +10,18 @@ class PyEasybuildEasyblocks(PythonPackage):
     installation framework for (scientific) software on HPC systems.
     """
 
-    homepage = 'http://hpcugent.github.io/easybuild/'
-    url      = 'https://pypi.io/packages/source/e/easybuild-easyblocks/easybuild-easyblocks-3.1.2.tar.gz'
+    homepage = "https://easybuilders.github.io/easybuild"
+    pypi = "easybuild-easyblocks/easybuild-easyblocks-4.0.0.tar.gz"
+    maintainers("boegel")
 
-    version('3.1.2', 'be08da30c07e67ed3e136e8d38905fbc')
+    license("GPL-2.0-only")
 
-    depends_on('py-easybuild-framework@3.1:', when='@3.1:', type='run')
+    version("4.7.0", sha256="c23e81cbaa3e4fa5ab1bb8b2db759332867d61110bf4ec34763ea170780f0655")
+    version("4.0.0", sha256="a0fdef6c33c786e323bde1b28bab942fd8e535c26842877d705e692e85b31b07")
+
+    depends_on("python@3.5:", type=("build", "run"))
+    # pip silently replaces distutils with setuptools
+    depends_on("py-setuptools", type="build")
+
+    for v in ["@4.0.0", "@4.7.0"]:
+        depends_on("py-easybuild-framework" + v, when=v, type="run")

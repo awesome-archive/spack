@@ -1,22 +1,23 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Fseq(Package):
     """F-Seq: A Feature Density Estimator for High-Throughput Sequence Tags"""
 
-    homepage = "http://fureylab.web.unc.edu/software/fseq/"
-    url      = "http://fureylab.med.unc.edu/fseq/fseq_1.84.tgz"
+    homepage = "https://fureylab.web.unc.edu/software/fseq/"
+    url = (
+        "http://html-large-files-dept-fureylab.cloudapps.unc.edu/fureylabfiles/fseq/fseq_1.84.tgz"
+    )
 
-    version('1.84', 'f9124ad0f45c60f3a7eb74dde8c945b9')
+    version("1.84", sha256="22d603a51f127cb86cdecde9aeae14d273bb98bcd2b47724763ab3b3241a6e68")
 
-    depends_on('java', type=('build', 'run'))
+    depends_on("java", type=("build", "run"))
 
     def install(self, spec, prefix):
-        install_tree('bin', prefix.bin)
-        install_tree('lib', prefix.lib)
-        install('mapviewToBed.pl', prefix.bin)
+        install_tree("bin", prefix.bin)
+        install_tree("lib", prefix.lib)
+        install("mapviewToBed.pl", prefix.bin)

@@ -1,17 +1,14 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class DtDiamondBottom(Package):
     """This package has an indirect diamond dependency on dt-diamond-bottom"""
+
     homepage = "http://www.example.com"
     url = "http://www.example.com/dt-diamond-bottom-1.0.tar.gz"
 
-    version('1.0', '0123456789abcdef0123456789abcdef')
-
-    def install(self, spec, prefix):
-        pass
+    version("1.0", md5="0123456789abcdef0123456789abcdef")

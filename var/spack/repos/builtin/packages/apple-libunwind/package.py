@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class AppleLibunwind(Package):
@@ -11,16 +10,14 @@ class AppleLibunwind(Package):
 
     homepage = "https://opensource.apple.com/source/libunwind/libunwind-35.3/"
 
-    provides('unwind')
+    provides("unwind")
 
     # The 'conflicts' directive only accepts valid spack specs;
     # platforms cannot be negated -- 'platform!=darwin' is not a valid
     # spec -- so expressing a conflict for any platform that isn't
     # Darwin must be expressed by listing a conflict with every
     # platform that isn't Darwin/macOS
-    conflicts('platform=linux')
-    conflicts('platform=bgq')
-    conflicts('platform=cray')
+    conflicts("platform=linux")
 
     # Override the fetcher method to throw a useful error message;
     # avoids GitHub issue (#7061) in which the opengl placeholder
@@ -35,15 +32,20 @@ class AppleLibunwind(Package):
 
         packages:
           apple-libunwind:
-            paths:
-              apple-libunwind@35.3: /usr
             buildable: False
-
+            externals:
+            - spec: apple-libunwind@35.3
+              prefix: /usr
         """
         raise InstallError(msg)
 
+    @fetcher.setter  # Since fetcher is read-write, must override both
+    def fetcher(self):
+        _ = self.fetcher
+
     def install(self, spec, prefix):
-        pass
+        # sanity_check_prefix requires something in the install directory
+        mkdirp(prefix.lib)
 
     @property
     def libs(self):
@@ -63,17 +65,13 @@ class AppleLibunwind(Package):
         it will link dynamically to `/usr/lib/system/libunwind.dylib`.
 
         """
-        libs = find_libraries('libSystem',
-                              self.prefix.lib,
-                              shared=True, recursive=False)
+        libs = find_libraries("libSystem", self.prefix.lib, shared=True, recursive=False)
         if libs:
             return libs
         return None
 
     @property
     def headers(self):
-        """ Export the Apple libunwind header
-        """
-        hdrs = HeaderList(find(self.prefix.include, 'libunwind.h',
-                               recursive=False))
+        """Export the Apple libunwind header"""
+        hdrs = HeaderList(find(self.prefix.include, "libunwind.h", recursive=False))
         return hdrs or None

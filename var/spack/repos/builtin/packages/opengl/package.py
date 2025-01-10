@@ -1,27 +1,36 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
+import re
 import sys
 
-from spack import *
+from spack.package import *
 
 
-class Opengl(Package):
+class Opengl(BundlePackage):
     """Placeholder for external OpenGL libraries from hardware vendors"""
 
     homepage = "https://www.opengl.org/"
+    version("4.5")
+    maintainers("biddisco")
 
-    provides('gl@:4.5', when='@4.5:')
-    provides('gl@:4.4', when='@4.4:')
-    provides('gl@:4.3', when='@4.3:')
-    provides('gl@:4.2', when='@4.2:')
-    provides('gl@:4.1', when='@4.1:')
-    provides('gl@:3.3', when='@3.3:')
+    # This should really be when='platform=linux' but can't because of a
+    # current bug in when and how ArchSpecs are constructed
+    if sys.platform.startswith("linux"):
+        provides("libglx")
+        executables = ["^glxinfo$"]
+    else:  # windows and mac
+        provides("gl@4.5")
 
-    if sys.platform != 'darwin':
-        provides('glx@1.4')
+    @classmethod
+    def determine_version(cls, exe):
+        if exe:
+            output = Executable(exe)(output=str, error=str)
+            match = re.search(r"OpenGL version string: (\S+)", output)
+            return match.group(1) if match else None
+        else:
+            return None
 
     # Override the fetcher method to throw a useful error message;
     # fixes GitHub issue (#7061) in which this package threw a
@@ -36,9 +45,10 @@ class Opengl(Package):
 
         packages:
           opengl:
-            paths:
-              opengl@4.5.0: /opt/opengl
             buildable: False
+            externals:
+            - spec: opengl@4.5.0
+              prefix: /opt/opengl
 
         In that case, /opt/opengl/ should contain these two folders:
 
@@ -51,9 +61,10 @@ class Opengl(Package):
 
         packages:
           opengl:
-            paths:
-              opengl@4.1: /usr/X11R6
             buildable: False
+            externals:
+            - spec: opengl@4.1
+              prefix: /usr/X11R6
 
         In that case, /usr/X11R6 should contain
 
@@ -66,10 +77,34 @@ class Opengl(Package):
         of OpenGL your Mac uses."""
         raise InstallError(msg)
 
+    @fetcher.setter  # Since fetcher is read-write, must override both
+    def fetcher(self):
+        _ = self.fetcher
+
+    @property
+    def headers(self):
+        return self.gl_headers
+
     @property
     def libs(self):
-        for dir in ['lib64', 'lib']:
-            libs = find_libraries('libGL', join_path(self.prefix, dir),
-                                  shared=True, recursive=False)
-            if libs:
-                return libs
+        return self.gl_libs
+
+    @property
+    def gl_headers(self):
+        spec = self.spec
+        if "platform=darwin" in spec:
+            header_name = "OpenGL/gl"
+        else:
+            header_name = "GL/gl"
+        return find_headers(header_name, root=self.prefix, recursive=True)
+
+    @property
+    def gl_libs(self):
+        spec = self.spec
+        if "platform=windows" in spec:
+            lib_name = "opengl32"
+        elif "platform=darwin" in spec:
+            lib_name = "libOpenGL"
+        else:
+            lib_name = "libGL"
+        return find_libraries(lib_name, root=self.prefix, recursive=True)

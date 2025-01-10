@@ -1,31 +1,46 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
+import platform
 
-from spack.architecture import Platform, Target
-from spack.architecture import OperatingSystem
+import archspec.cpu
+
+import spack.operating_systems
+
+from ._platform import Platform
 
 
 class Test(Platform):
-    priority    = 1000000
-    front_end   = 'x86_32'
-    back_end    = 'x86_64'
-    default     = 'x86_64'
+    priority = 1000000
 
-    front_os = 'redhat6'
-    back_os = 'debian6'
-    default_os = 'debian6'
+    if platform.system().lower() == "darwin":
+        binary_formats = ["macho"]
 
-    def __init__(self):
-        super(Test, self).__init__('test')
-        self.add_target(self.default, Target(self.default))
-        self.add_target(self.front_end, Target(self.front_end))
+    if platform.machine() == "arm64":
+        front_end = "aarch64"
+        back_end = "m1"
+        default = "m1"
+    else:
+        front_end = "x86_64"
+        back_end = "core2"
+        default = "core2"
+
+    front_os = "redhat6"
+    back_os = "debian6"
+    default_os = "debian6"
+
+    def __init__(self, name=None):
+        name = name or "test"
+        super().__init__(name)
+        self.add_target(self.default, archspec.cpu.TARGETS[self.default])
+        self.add_target(self.front_end, archspec.cpu.TARGETS[self.front_end])
 
         self.add_operating_system(
-            self.default_os, OperatingSystem('debian', 6))
+            self.default_os, spack.operating_systems.OperatingSystem("debian", 6)
+        )
         self.add_operating_system(
-            self.front_os, OperatingSystem('redhat', 6))
+            self.front_os, spack.operating_systems.OperatingSystem("redhat", 6)
+        )
 
     @classmethod
     def detect(cls):

@@ -1,112 +1,129 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.build_systems.python import PythonPipBuilder
+from spack.package import *
 
 
-class Mxnet(MakefilePackage):
-    """MXNet is a deep learning framework
-    designed for both efficiency and flexibility."""
+class Mxnet(CMakePackage, CudaPackage, PythonExtension):
+    """MXNet is a deep learning framework designed for both efficiency and flexibility."""
 
-    homepage = "http://mxnet.io"
-    url      = "https://github.com/apache/incubator-mxnet/archive/0.10.0.post2.tar.gz"
+    homepage = "https://mxnet.apache.org"
+    url = "https://archive.apache.org/dist/incubator/mxnet/1.7.0/apache-mxnet-src-1.7.0-incubating.tar.gz"
+    list_url = "https://mxnet.apache.org/get_started/download"
+    git = "https://github.com/apache/mxnet.git"
 
-    version('1.3.0', 'c00d6fbb2947144ce36c835308e603f002c1eb90a9f4c5a62f4d398154eed4d2',
-            url='https://github.com/apache/incubator-mxnet/releases/download/1.3.0/apache-mxnet-src-1.3.0-incubating.tar.gz')
-    version('0.10.0.post2',  '7819d511cf4a6efad681e6662fa966e4',
-            url="https://github.com/apache/incubator-mxnet/archive/0.10.0.post2.tar.gz")
-    version('0.10.0.post1',  '16d540f407cd22285555b3ab22040032',
-            url="https://github.com/apache/incubator-mxnet/archive/v0.10.0.post1.tar.gz")
-    version('0.10.0', '2d0c83c33eda729932d620cca3078826',
-            url="https://github.com/apache/incubator-mxnet/archive/v0.10.0.tar.gz")
+    license("Apache-2.0")
 
-    variant('cuda', default=False, description='Enable CUDA support')
-    variant('opencv', default=True, description='Enable OpenCV support')
-    variant('openmp', default=False, description='Enable OpenMP support')
-    variant('profiler', default=False, description='Enable Profiler (for verification and debug only).')
-    variant('python', default=True, description='Install python bindings')
+    version("master", branch="master", submodules=True)
+    version("1.9.1", sha256="11ea61328174d8c29b96f341977e03deb0bf4b0c37ace658f93e38d9eb8c9322")
+    version("1.9.0", sha256="a2a99cf604d57094269cacdfc4066492b2dc886593ee02b862e034f6180f712d")
+    version("1.8.0", sha256="95aff985895aba409c08d5514510ae38b88490cfb6281ab3a5ff0f5826c8db54")
+    version("1.7.0", sha256="1d20c9be7d16ccb4e830e9ee3406796efaf96b0d93414d676337b64bc59ced18")
+    version("1.6.0", sha256="01eb06069c90f33469c7354946261b0a94824bbaf819fd5d5a7318e8ee596def")
 
-    depends_on('dmlc-core@20170508')
-    depends_on('dmlc-core+openmp', when='+openmp')
-    depends_on('dmlc-core~openmp', when='~openmp')
-    depends_on('mshadow@20170721')
-    depends_on('ps-lite@20170328')
-    depends_on('nnvm~shared@20170418')
-    depends_on('blas')
-    depends_on('cudnn', when='+cuda')
-    depends_on('cudnn', when='+cuda')
-    depends_on('cub', when='+cuda')
-    depends_on('opencv+core+imgproc+highgui+jpeg+png+tiff~eigen~ipp@3.0:', when='+opencv')
+    depends_on("c", type="build")  # generated
+    depends_on("cxx", type="build")  # generated
 
-    # python extensions
-    depends_on('python@2.7:', type=('build', 'run'), when='+python')
-    depends_on('py-setuptools', type='build', when='+python')
-    extends('python', when='+python')
+    variant(
+        "build_type",
+        default="Distribution",
+        description="CMake build type",
+        values=("Distribution", "Debug", "Release", "RelWithDebInfo", "MinSizeRel"),
+    )
+    variant("cuda", default=True, description="Enable CUDA support")
+    variant("cudnn", default=True, description="Build with cudnn support")
+    variant("nccl", default=False, description="Use NVidia NCCL with CUDA")
+    variant("opencv", default=True, description="Enable OpenCV support")
+    variant("openmp", default=False, description="Enable OpenMP support")
+    variant("lapack", default=True, description="Build with lapack support")
+    variant("mkldnn", default=False, description="Build with MKL-DNN support")
+    variant("python", default=True, description="Install python bindings")
 
-    patch('makefile.patch', when='@0.10:0.11')
+    generator("ninja")
+    depends_on("cmake@3.13:", type="build")
+    depends_on("pkgconfig", when="@1.6.0", type="build")
+    depends_on("blas")
+    depends_on("cuda", when="+cuda")
+    depends_on("cudnn", when="+cudnn")
+    depends_on("nccl", when="+nccl")
+    depends_on("opencv+highgui+imgproc+imgcodecs", when="+opencv")
+    depends_on("lapack", when="+lapack")
+    depends_on("onednn", when="+mkldnn")
 
-    def build(self, spec, prefix):
-        # copy template configuration file
-        copy('make/config.mk', 'config.mk')
+    # python/setup.py
+    extends("python", when="+python")
+    depends_on("py-pip", when="+python", type="build")
+    depends_on("py-wheel", when="+python", type="build")
+    depends_on("py-setuptools", when="+python", type="build")
+    depends_on("py-cython", when="+python", type="build")
+    depends_on("py-numpy@1.17:", when="@2.0.0:+python", type=("build", "run"))
+    depends_on("py-numpy@1.16.1:1", when="@1.6:1.8.0+python", type=("build", "run"))
+    depends_on("py-requests@2.20.0:2", when="@1.6:+python", type=("build", "run"))
+    depends_on("py-graphviz@0.8.1:0.8", when="+python", type=("build", "run"))
 
-        # remove compiler overrides
-        filter_file('export CC = gcc', '', 'config.mk', string=True)
-        filter_file('export CXX = g++', '', 'config.mk', string=True)
+    conflicts("+cudnn", when="~cuda")
+    conflicts("+nccl", when="~cuda")
+    conflicts("platform=darwin target=aarch64:", when="@:1")
 
-        # add blas prefix to include paths
-        filter_file(
-            '-I$(NNVM_PATH)/include',
-            '-I$(NNVM_PATH)/include -I%s/include' % spec['blas'].prefix,
-            'Makefile', string=True
-        )
+    patch("openblas-1.7.0.patch", when="@1.7.0:1")
+    patch("openblas-1.6.0.patch", when="@1.6.0")
+    patch("cmake_cuda_flags.patch", when="@1.6:1.7")
+    patch("parallell_shuffle.patch", when="@1.6.0")
 
-        # mxnet comes with its own version of nnvm and dmlc.
-        # building it will fail if we use the spack paths
+    # python/setup.py assumes libs can be found in build directory
+    build_directory = "build"
 
+    def setup_run_environment(self, env):
+        env.set("MXNET_LIBRARY_PATH", self.spec["mxnet"].libs[0])
+
+        if self.spec.satisfies("+nccl ^nccl@2.1:"):
+            env.set("NCCL_LAUNCH_MODE", "PARALLEL")
+
+    def cmake_args(self):
+        # https://mxnet.apache.org/get_started/build_from_source
         args = [
-            'CC=%s' % self.compiler.cc,
-            'CXX=%s' % self.compiler.cxx,
-            'MSHADOW_PATH=%s' % spec['mshadow'].prefix,
-            'PS_PATH=%s' % spec['ps-lite'].prefix,
-            'USE_OPENMP=%s' % ('1' if '+openmp' in spec else '0'),
-            'USE_CUDA=%s' % ('1' if '+cuda' in spec else '0'),
-            'USE_CUDNN=%s' % ('1' if '+cuda' in spec else '0'),
-            'USE_OPENCV=%s' % ('1' if '+opencv' in spec else '0'),
-            'USE_PROFILER=%s' % ('1' if '+profiler' in spec else '0'),
+            self.define_from_variant("USE_CUDA", "cuda"),
+            self.define_from_variant("USE_CUDNN", "cudnn"),
+            self.define_from_variant("USE_OPENCV", "opencv"),
+            self.define_from_variant("USE_OPENMP", "openmp"),
+            self.define_from_variant("USE_LAPACK", "lapack"),
+            self.define("BLAS_LIBRARIES", self.spec["blas"].libs[0]),
         ]
 
-        if '+opencv' in spec:
-            filter_file('$(shell pkg-config --cflags opencv)',
-                        '-I%s' % spec['opencv'].prefix.include,
-                        'Makefile', string=True)
-            filter_file('$(filter-out -lopencv_ts, '
-                        '$(shell pkg-config --libs opencv))',
-                        '-lopencv_core -lopencv_imgproc -lopencv_imgcodecs',
-                        'Makefile', string=True)
+        if self.spec.satisfies("@:1"):
+            args.append(self.define_from_variant("USE_MKLDNN", "mkldnn"))
+        elif self.spec.satisfies("@2:"):
+            args.append(self.define_from_variant("USE_ONEDNN", "mkldnn"))
+            args.append(self.define("USE_CUTENSOR", False))
 
-        if 'openblas' in spec:
-            args.extend(['USE_BLAS=openblas'])
-        elif 'atlas' in spec or 'cblas' in spec:
-            args.extend(['USE_BLAS=atlas'])
-        else:
-            args.extend(['USE_BLAS=blas'])
+        if "+cuda" in self.spec:
+            if "cuda_arch=none" not in self.spec:
+                cuda_arch = ";".join(
+                    "{0:.1f}".format(float(i) / 10.0)
+                    for i in self.spec.variants["cuda_arch"].value
+                )
+                args.append(self.define("MXNET_CUDA_ARCH", cuda_arch))
 
-        if '+cuda' in spec:
-            args.extend(['USE_CUDA_PATH=%s' % spec['cuda'].prefix,
-                         'CUDNN_PATH=%s' % spec['cudnn'].prefix,
-                         'CUB_INCLUDE=%s' % spec['cub'].prefix.include])
+            args.extend(
+                [
+                    self.define_from_variant("USE_NCCL", "nccl"),
+                    # Workaround for bug in GCC 8+ and CUDA 10 on PowerPC
+                    self.define("CMAKE_CUDA_FLAGS", self.compiler.cxx11_flag),
+                    # https://github.com/apache/mxnet/issues/21193
+                    # https://github.com/spack/spack/issues/36922
+                    self.define(
+                        "CMAKE_CXX_FLAGS",
+                        "-L" + join_path(self.spec["cuda"].libs.directories[0], "stubs"),
+                    ),
+                ]
+            )
 
-        make(*args)
+        return args
 
-    def install(self, spec, prefix):
-        # mxnet is just a shared library -- no need to install a bin tree
-
-        install_tree('include', prefix.include)
-        install_tree('lib', prefix.lib)
-
-        # install python bindings
-        if '+python' in spec:
-            python = which('python')
-            python('python/setup.py', 'install', '--prefix={0}'.format(prefix))
+    @run_after("install")
+    def install_python(self):
+        if "+python" in self.spec:
+            with working_dir("python"):
+                pip(*PythonPipBuilder.std_args(self), f"--prefix={self.prefix}", ".")

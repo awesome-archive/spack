@@ -1,17 +1,25 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class RNcbit(RPackage):
-    """Making NCBI taxonomic data locally available and searchable as an R
-       object."""
+    """Retrieve and build NBCI taxonomic data.
 
-    homepage = "https://cran.r-project.org/package=ncbit"
-    url      = "https://cran.r-project.org/src/contrib/ncbit_2013.03.29.tar.gz"
-    list_url = "https://cran.r-project.org/src/contrib/Archive/ncbit"
+    Making NCBI taxonomic data locally available and searchable as an R
+    object."""
 
-    version('2013.03.29', '29582d7e5c8bbf9683c57c4f6ac3e891')
+    cran = "ncbit"
+
+    license("GPL-2.0-or-later")
+
+    version(
+        "2013.03.29.1", sha256="847f570c035d849e775c1cb922d2775e6c535971eb4429cf62904319fd126504"
+    )
+    version(
+        "2013.03.29", sha256="4480271f14953615c8ddc2e0666866bb1d0964398ba0fab6cc29046436820738"
+    )
+
+    depends_on("r@2.10:", type=("build", "run"))

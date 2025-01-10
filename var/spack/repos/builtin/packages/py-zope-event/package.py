@@ -1,21 +1,23 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyZopeEvent(PythonPackage):
     """Very basic event publishing system."""
 
-    homepage = "http://github.com/zopefoundation/zope.event"
-    url      = "https://pypi.io/packages/source/z/zope.event/zope.event-4.3.0.tar.gz"
+    homepage = "https://github.com/zopefoundation/zope.event"
+    pypi = "zope.event/zope.event-4.3.0.tar.gz"
 
-    # FIXME: No idea why this import test fails.
-    # Maybe some kind of namespace issue?
-    # import_modules = ['zope.event']
+    license("ZPL-2.1", checked_by="wdconinc")
 
-    version('4.3.0', '8ca737960741c6fd112972f3313303bd')
+    version("5.0", sha256="bac440d8d9891b4068e2b5a2c5e2c9765a9df762944bda6955f96bb9b91e67cd")
+    version("4.6", sha256="81d98813046fc86cc4136e3698fee628a3282f9c320db18658c21749235fce80")
+    version("4.5.1", sha256="4ab47faac13163ca3c5d6d8a5595212e14770322e95c338d955e3688ba19082a")
+    version("4.5.0", sha256="5e76517f5b9b119acf37ca8819781db6c16ea433f7e2062c4afc2b6fbedb1330")
+    version("4.3.0", sha256="e0ecea24247a837c71c106b0341a7a997e3653da820d21ef6c08b32548f733e7")
 
-    depends_on('py-setuptools', type='build')
+    depends_on("python@3.7:", type=("build", "run"), when="@5:")
+    depends_on("py-setuptools", type=("build", "run"))

@@ -1,19 +1,19 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-#
-from spack import *
+from spack.package import *
 
 
 class PyPycrypto(PythonPackage):
     """The Python Cryptography Toolkit"""
 
     homepage = "https://www.dlitz.net/software/pycrypto/"
-    url      = "https://pypi.io/packages/source/p/pycrypto/pycrypto-2.6.1.tar.gz"
+    pypi = "pycrypto/pycrypto-2.6.1.tar.gz"
 
-    version('2.6.1', '55a61a054aa66812daf5161a0d5d7eda')
+    version("2.6.1", sha256="f2ce1e989b272cfcb677616763e0a2e7ec659effa67a88aa92b3a65528f60a3c")
+
+    depends_on("c", type="build")  # generated
 
     # depends_on('py-setuptools', type='build')
-    depends_on('gmp')
+    depends_on("gmp")

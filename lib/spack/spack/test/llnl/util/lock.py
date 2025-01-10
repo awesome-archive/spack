@@ -1,5 +1,4 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
@@ -18,7 +17,7 @@ across nodes.  So, e.g., you can run the test like this::
     mpirun -n 7 spack test lock
 
 And it will test locking correctness among MPI processes.  Ideally, you
-want the MPI processes to span across multiple nodes, so, e.g., for SLURM
+want the MPI processes to span across multiple nodes, so, e.g., for Slurm
 you might do this::
 
     srun -N 7 -n 7 -m cyclic spack test lock
@@ -42,13 +41,17 @@ node-local filesystem, and multi-node tests will fail if the locks aren't
 actually on a shared filesystem.
 
 """
+import collections
+import errno
+import getpass
+import glob
 import os
-import socket
 import shutil
+import socket
+import stat
+import sys
 import tempfile
 import traceback
-import glob
-import getpass
 from contextlib import contextmanager
 from multiprocessing import Process, Queue
 
@@ -56,7 +59,12 @@ import pytest
 
 import llnl.util.lock as lk
 import llnl.util.multiproc as mp
-from llnl.util.filesystem import touch
+from llnl.util.filesystem import getuid, touch
+
+if sys.platform != "win32":
+    import fcntl
+
+pytestmark = pytest.mark.not_on_windows("does not run on windows")
 
 
 #
@@ -77,6 +85,7 @@ mpi = False
 comm = None
 try:
     from mpi4py import MPI
+
     comm = MPI.COMM_WORLD
     if comm.size > 1:
         mpi = True
@@ -94,8 +103,8 @@ system.
 """
 locations = [
     tempfile.gettempdir(),
-    os.path.join('/nfs/tmp2/', getpass.getuser()),
-    os.path.join('/p/lscratch*/', getpass.getuser()),
+    os.path.join("/nfs/tmp2/", getpass.getuser()),
+    os.path.join("/p/lscratch*/", getpass.getuser()),
 ]
 
 """This is the longest a failed multiproc test will take.
@@ -110,14 +119,25 @@ lock_fail_timeout = 0.1
 
 
 def make_readable(*paths):
+    # TODO: From os.chmod doc:
+    # "Note Although Windows supports chmod(), you can only
+    # set the file's read-only flag with it (via the stat.S_IWRITE and
+    # stat.S_IREAD constants or a corresponding integer value). All other
+    # bits are ignored."
     for path in paths:
-        mode = 0o555 if os.path.isdir(path) else 0o444
+        if sys.platform != "win32":
+            mode = 0o555 if os.path.isdir(path) else 0o444
+        else:
+            mode = stat.S_IREAD
         os.chmod(path, mode)
 
 
 def make_writable(*paths):
     for path in paths:
-        mode = 0o755 if os.path.isdir(path) else 0o744
+        if sys.platform != "win32":
+            mode = 0o755 if os.path.isdir(path) else 0o744
+        else:
+            mode = stat.S_IWRITE
         os.chmod(path, mode)
 
 
@@ -132,7 +152,7 @@ def read_only(*paths):
         os.chmod(path, mode)
 
 
-@pytest.fixture(scope='session', params=locations)
+@pytest.fixture(scope="session", params=locations)
 def lock_test_directory(request):
     """This fixture causes tests to be executed for many different mounts.
 
@@ -141,10 +161,12 @@ def lock_test_directory(request):
     return request.param
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def lock_dir(lock_test_directory):
-    parent = next((p for p in glob.glob(lock_test_directory)
-                   if os.path.exists(p) and os.access(p, os.W_OK)), None)
+    parent = next(
+        (p for p in glob.glob(lock_test_directory) if os.path.exists(p) and os.access(p, os.W_OK)),
+        None,
+    )
     if not parent:
         # Skip filesystems that don't exist or aren't writable
         pytest.skip("requires filesystem: '%s'" % lock_test_directory)
@@ -178,9 +200,9 @@ def private_lock_path(lock_dir):
 
     For other modes, it is the same as a shared lock.
     """
-    lock_file = os.path.join(lock_dir, 'lockfile')
+    lock_file = os.path.join(lock_dir, "lockfile")
     if mpi:
-        lock_file += '.%s' % comm.rank
+        lock_file += ".%s" % comm.rank
 
     yield lock_file
 
@@ -192,7 +214,7 @@ def private_lock_path(lock_dir):
 @pytest.fixture
 def lock_path(lock_dir):
     """This lock is shared among all processes in a multiproc test."""
-    lock_file = os.path.join(lock_dir, 'lockfile')
+    lock_file = os.path.join(lock_dir, "lockfile")
 
     yield lock_file
 
@@ -202,8 +224,7 @@ def lock_path(lock_dir):
 
 
 def test_poll_interval_generator():
-    interval_iter = iter(
-        lk.Lock._poll_interval_generator(_wait_times=[1, 2, 3]))
+    interval_iter = iter(lk.Lock._poll_interval_generator(_wait_times=[1, 2, 3]))
     intervals = list(next(interval_iter) for i in range(100))
     assert intervals == [1] * 20 + [2] * 40 + [3] * 40
 
@@ -212,9 +233,8 @@ def local_multiproc_test(*functions, **kwargs):
     """Order some processes using simple barrier synchronization."""
     b = mp.Barrier(len(functions), timeout=barrier_timeout)
 
-    args = (b,) + tuple(kwargs.get('extra_args', ()))
-    procs = [Process(target=f, args=args, name=f.__name__)
-             for f in functions]
+    args = (b,) + tuple(kwargs.get("extra_args", ()))
+    procs = [Process(target=f, args=args, name=f.__name__) for f in functions]
 
     for p in procs:
         p.start()
@@ -245,8 +265,9 @@ def mpi_multiproc_test(*functions):
     include = comm.rank < len(functions)
     subcomm = comm.Split(include)
 
-    class subcomm_barrier(object):
+    class subcomm_barrier:
         """Stand-in for multiproc barrier for MPI-parallel jobs."""
+
         def wait(self):
             subcomm.Barrier()
 
@@ -274,42 +295,74 @@ multiproc_test = mpi_multiproc_test if mpi else local_multiproc_test
 #
 # Process snippets below can be composed into tests.
 #
-def acquire_write(lock_path, start=0, length=0):
-    def fn(barrier):
-        lock = lk.Lock(lock_path, start, length)
+class AcquireWrite:
+    def __init__(self, lock_path, start=0, length=0):
+        self.lock_path = lock_path
+        self.start = start
+        self.length = length
+
+    @property
+    def __name__(self):
+        return self.__class__.__name__
+
+    def __call__(self, barrier):
+        lock = lk.Lock(self.lock_path, start=self.start, length=self.length)
         lock.acquire_write()  # grab exclusive lock
         barrier.wait()
         barrier.wait()  # hold the lock until timeout in other procs.
-    return fn
 
 
-def acquire_read(lock_path, start=0, length=0):
-    def fn(barrier):
-        lock = lk.Lock(lock_path, start, length)
+class AcquireRead:
+    def __init__(self, lock_path, start=0, length=0):
+        self.lock_path = lock_path
+        self.start = start
+        self.length = length
+
+    @property
+    def __name__(self):
+        return self.__class__.__name__
+
+    def __call__(self, barrier):
+        lock = lk.Lock(self.lock_path, start=self.start, length=self.length)
         lock.acquire_read()  # grab shared lock
         barrier.wait()
         barrier.wait()  # hold the lock until timeout in other procs.
-    return fn
 
 
-def timeout_write(lock_path, start=0, length=0):
-    def fn(barrier):
-        lock = lk.Lock(lock_path, start, length)
+class TimeoutWrite:
+    def __init__(self, lock_path, start=0, length=0):
+        self.lock_path = lock_path
+        self.start = start
+        self.length = length
+
+    @property
+    def __name__(self):
+        return self.__class__.__name__
+
+    def __call__(self, barrier):
+        lock = lk.Lock(self.lock_path, start=self.start, length=self.length)
         barrier.wait()  # wait for lock acquire in first process
         with pytest.raises(lk.LockTimeoutError):
             lock.acquire_write(lock_fail_timeout)
         barrier.wait()
-    return fn
 
 
-def timeout_read(lock_path, start=0, length=0):
-    def fn(barrier):
-        lock = lk.Lock(lock_path, start, length)
+class TimeoutRead:
+    def __init__(self, lock_path, start=0, length=0):
+        self.lock_path = lock_path
+        self.start = start
+        self.length = length
+
+    @property
+    def __name__(self):
+        return self.__class__.__name__
+
+    def __call__(self, barrier):
+        lock = lk.Lock(self.lock_path, start=self.start, length=self.length)
         barrier.wait()  # wait for lock acquire in first process
         with pytest.raises(lk.LockTimeoutError):
             lock.acquire_read(lock_fail_timeout)
         barrier.wait()
-    return fn
 
 
 #
@@ -317,58 +370,55 @@ def timeout_read(lock_path, start=0, length=0):
 # exclusive lock is held.
 #
 def test_write_lock_timeout_on_write(lock_path):
-    multiproc_test(
-        acquire_write(lock_path),
-        timeout_write(lock_path))
+    multiproc_test(AcquireWrite(lock_path), TimeoutWrite(lock_path))
 
 
 def test_write_lock_timeout_on_write_2(lock_path):
-    multiproc_test(
-        acquire_write(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path))
+    multiproc_test(AcquireWrite(lock_path), TimeoutWrite(lock_path), TimeoutWrite(lock_path))
 
 
 def test_write_lock_timeout_on_write_3(lock_path):
     multiproc_test(
-        acquire_write(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path))
+        AcquireWrite(lock_path),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+    )
 
 
 def test_write_lock_timeout_on_write_ranges(lock_path):
-    multiproc_test(
-        acquire_write(lock_path, 0, 1),
-        timeout_write(lock_path, 0, 1))
+    multiproc_test(AcquireWrite(lock_path, 0, 1), TimeoutWrite(lock_path, 0, 1))
 
 
 def test_write_lock_timeout_on_write_ranges_2(lock_path):
     multiproc_test(
-        acquire_write(lock_path, 0, 64),
-        acquire_write(lock_path, 65, 1),
-        timeout_write(lock_path, 0, 1),
-        timeout_write(lock_path, 63, 1))
+        AcquireWrite(lock_path, 0, 64),
+        AcquireWrite(lock_path, 65, 1),
+        TimeoutWrite(lock_path, 0, 1),
+        TimeoutWrite(lock_path, 63, 1),
+    )
 
 
 def test_write_lock_timeout_on_write_ranges_3(lock_path):
     multiproc_test(
-        acquire_write(lock_path, 0, 1),
-        acquire_write(lock_path, 1, 1),
-        timeout_write(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path))
+        AcquireWrite(lock_path, 0, 1),
+        AcquireWrite(lock_path, 1, 1),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+    )
 
 
 def test_write_lock_timeout_on_write_ranges_4(lock_path):
     multiproc_test(
-        acquire_write(lock_path, 0, 1),
-        acquire_write(lock_path, 1, 1),
-        acquire_write(lock_path, 2, 456),
-        acquire_write(lock_path, 500, 64),
-        timeout_write(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path))
+        AcquireWrite(lock_path, 0, 1),
+        AcquireWrite(lock_path, 1, 1),
+        AcquireWrite(lock_path, 2, 456),
+        AcquireWrite(lock_path, 500, 64),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+    )
 
 
 #
@@ -376,176 +426,167 @@ def test_write_lock_timeout_on_write_ranges_4(lock_path):
 # exclusive lock is held.
 #
 def test_read_lock_timeout_on_write(lock_path):
-    multiproc_test(
-        acquire_write(lock_path),
-        timeout_read(lock_path))
+    multiproc_test(AcquireWrite(lock_path), TimeoutRead(lock_path))
 
 
 def test_read_lock_timeout_on_write_2(lock_path):
-    multiproc_test(
-        acquire_write(lock_path),
-        timeout_read(lock_path),
-        timeout_read(lock_path))
+    multiproc_test(AcquireWrite(lock_path), TimeoutRead(lock_path), TimeoutRead(lock_path))
 
 
 def test_read_lock_timeout_on_write_3(lock_path):
     multiproc_test(
-        acquire_write(lock_path),
-        timeout_read(lock_path),
-        timeout_read(lock_path),
-        timeout_read(lock_path))
+        AcquireWrite(lock_path),
+        TimeoutRead(lock_path),
+        TimeoutRead(lock_path),
+        TimeoutRead(lock_path),
+    )
 
 
 def test_read_lock_timeout_on_write_ranges(lock_path):
     """small write lock, read whole file."""
-    multiproc_test(
-        acquire_write(lock_path, 0, 1),
-        timeout_read(lock_path))
+    multiproc_test(AcquireWrite(lock_path, 0, 1), TimeoutRead(lock_path))
 
 
 def test_read_lock_timeout_on_write_ranges_2(lock_path):
     """small write lock, small read lock"""
-    multiproc_test(
-        acquire_write(lock_path, 0, 1),
-        timeout_read(lock_path, 0, 1))
+    multiproc_test(AcquireWrite(lock_path, 0, 1), TimeoutRead(lock_path, 0, 1))
 
 
 def test_read_lock_timeout_on_write_ranges_3(lock_path):
     """two write locks, overlapping read locks"""
     multiproc_test(
-        acquire_write(lock_path, 0, 1),
-        acquire_write(lock_path, 64, 128),
-        timeout_read(lock_path, 0, 1),
-        timeout_read(lock_path, 128, 256))
+        AcquireWrite(lock_path, 0, 1),
+        AcquireWrite(lock_path, 64, 128),
+        TimeoutRead(lock_path, 0, 1),
+        TimeoutRead(lock_path, 128, 256),
+    )
 
 
 #
 # Test that exclusive locks time out when shared locks are held.
 #
 def test_write_lock_timeout_on_read(lock_path):
-    multiproc_test(
-        acquire_read(lock_path),
-        timeout_write(lock_path))
+    multiproc_test(AcquireRead(lock_path), TimeoutWrite(lock_path))
 
 
 def test_write_lock_timeout_on_read_2(lock_path):
-    multiproc_test(
-        acquire_read(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path))
+    multiproc_test(AcquireRead(lock_path), TimeoutWrite(lock_path), TimeoutWrite(lock_path))
 
 
 def test_write_lock_timeout_on_read_3(lock_path):
     multiproc_test(
-        acquire_read(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path))
+        AcquireRead(lock_path),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+    )
 
 
 def test_write_lock_timeout_on_read_ranges(lock_path):
-    multiproc_test(
-        acquire_read(lock_path, 0, 1),
-        timeout_write(lock_path))
+    multiproc_test(AcquireRead(lock_path, 0, 1), TimeoutWrite(lock_path))
 
 
 def test_write_lock_timeout_on_read_ranges_2(lock_path):
-    multiproc_test(
-        acquire_read(lock_path, 0, 1),
-        timeout_write(lock_path, 0, 1))
+    multiproc_test(AcquireRead(lock_path, 0, 1), TimeoutWrite(lock_path, 0, 1))
 
 
 def test_write_lock_timeout_on_read_ranges_3(lock_path):
     multiproc_test(
-        acquire_read(lock_path, 0, 1),
-        acquire_read(lock_path, 10, 1),
-        timeout_write(lock_path, 0, 1),
-        timeout_write(lock_path, 10, 1))
+        AcquireRead(lock_path, 0, 1),
+        AcquireRead(lock_path, 10, 1),
+        TimeoutWrite(lock_path, 0, 1),
+        TimeoutWrite(lock_path, 10, 1),
+    )
 
 
 def test_write_lock_timeout_on_read_ranges_4(lock_path):
     multiproc_test(
-        acquire_read(lock_path, 0, 64),
-        timeout_write(lock_path, 10, 1),
-        timeout_write(lock_path, 32, 1))
+        AcquireRead(lock_path, 0, 64),
+        TimeoutWrite(lock_path, 10, 1),
+        TimeoutWrite(lock_path, 32, 1),
+    )
 
 
 def test_write_lock_timeout_on_read_ranges_5(lock_path):
     multiproc_test(
-        acquire_read(lock_path, 64, 128),
-        timeout_write(lock_path, 65, 1),
-        timeout_write(lock_path, 127, 1),
-        timeout_write(lock_path, 90, 10))
+        AcquireRead(lock_path, 64, 128),
+        TimeoutWrite(lock_path, 65, 1),
+        TimeoutWrite(lock_path, 127, 1),
+        TimeoutWrite(lock_path, 90, 10),
+    )
 
 
 #
 # Test that exclusive locks time while lots of shared locks are held.
 #
 def test_write_lock_timeout_with_multiple_readers_2_1(lock_path):
-    multiproc_test(
-        acquire_read(lock_path),
-        acquire_read(lock_path),
-        timeout_write(lock_path))
+    multiproc_test(AcquireRead(lock_path), AcquireRead(lock_path), TimeoutWrite(lock_path))
 
 
 def test_write_lock_timeout_with_multiple_readers_2_2(lock_path):
     multiproc_test(
-        acquire_read(lock_path),
-        acquire_read(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path))
+        AcquireRead(lock_path),
+        AcquireRead(lock_path),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+    )
 
 
 def test_write_lock_timeout_with_multiple_readers_3_1(lock_path):
     multiproc_test(
-        acquire_read(lock_path),
-        acquire_read(lock_path),
-        acquire_read(lock_path),
-        timeout_write(lock_path))
+        AcquireRead(lock_path),
+        AcquireRead(lock_path),
+        AcquireRead(lock_path),
+        TimeoutWrite(lock_path),
+    )
 
 
 def test_write_lock_timeout_with_multiple_readers_3_2(lock_path):
     multiproc_test(
-        acquire_read(lock_path),
-        acquire_read(lock_path),
-        acquire_read(lock_path),
-        timeout_write(lock_path),
-        timeout_write(lock_path))
+        AcquireRead(lock_path),
+        AcquireRead(lock_path),
+        AcquireRead(lock_path),
+        TimeoutWrite(lock_path),
+        TimeoutWrite(lock_path),
+    )
 
 
 def test_write_lock_timeout_with_multiple_readers_2_1_ranges(lock_path):
     multiproc_test(
-        acquire_read(lock_path, 0, 10),
-        acquire_read(lock_path, 0.5, 10),
-        timeout_write(lock_path, 5, 5))
+        AcquireRead(lock_path, 0, 10), AcquireRead(lock_path, 2, 10), TimeoutWrite(lock_path, 5, 5)
+    )
 
 
 def test_write_lock_timeout_with_multiple_readers_2_3_ranges(lock_path):
     multiproc_test(
-        acquire_read(lock_path, 0, 10),
-        acquire_read(lock_path, 5, 15),
-        timeout_write(lock_path, 0, 1),
-        timeout_write(lock_path, 11, 3),
-        timeout_write(lock_path, 7, 1))
+        AcquireRead(lock_path, 0, 10),
+        AcquireRead(lock_path, 5, 15),
+        TimeoutWrite(lock_path, 0, 1),
+        TimeoutWrite(lock_path, 11, 3),
+        TimeoutWrite(lock_path, 7, 1),
+    )
 
 
 def test_write_lock_timeout_with_multiple_readers_3_1_ranges(lock_path):
     multiproc_test(
-        acquire_read(lock_path, 0, 5),
-        acquire_read(lock_path, 5, 5),
-        acquire_read(lock_path, 10, 5),
-        timeout_write(lock_path, 0, 15))
+        AcquireRead(lock_path, 0, 5),
+        AcquireRead(lock_path, 5, 5),
+        AcquireRead(lock_path, 10, 5),
+        TimeoutWrite(lock_path, 0, 15),
+    )
 
 
 def test_write_lock_timeout_with_multiple_readers_3_2_ranges(lock_path):
     multiproc_test(
-        acquire_read(lock_path, 0, 5),
-        acquire_read(lock_path, 5, 5),
-        acquire_read(lock_path, 10, 5),
-        timeout_write(lock_path, 3, 10),
-        timeout_write(lock_path, 5, 1))
+        AcquireRead(lock_path, 0, 5),
+        AcquireRead(lock_path, 5, 5),
+        AcquireRead(lock_path, 10, 5),
+        TimeoutWrite(lock_path, 3, 10),
+        TimeoutWrite(lock_path, 5, 1),
+    )
 
 
+@pytest.mark.skipif(getuid() == 0, reason="user is root")
 def test_read_lock_on_read_only_lockfile(lock_dir, lock_path):
     """read-only directory, read-only lockfile."""
     touch(lock_path)
@@ -573,6 +614,7 @@ def test_read_lock_read_only_dir_writable_lockfile(lock_dir, lock_path):
             pass
 
 
+@pytest.mark.skipif(False if sys.platform == "win32" else getuid() == 0, reason="user is root")
 def test_read_lock_no_lockfile(lock_dir, lock_path):
     """read-only directory, no lockfile (so can't create)."""
     with read_only(lock_dir):
@@ -596,7 +638,7 @@ def test_upgrade_read_to_write(private_lock_path):
     upgrade is possible.
     """
     # ensure lock file exists the first time, so we open it read-only
-    # to begin wtih.
+    # to begin with.
     touch(private_lock_path)
 
     lock = lk.Lock(private_lock_path)
@@ -606,17 +648,17 @@ def test_upgrade_read_to_write(private_lock_path):
     lock.acquire_read()
     assert lock._reads == 1
     assert lock._writes == 0
-    assert lock._file.mode == 'r+'
+    assert lock._file.mode == "rb+"
 
     lock.acquire_write()
     assert lock._reads == 1
     assert lock._writes == 1
-    assert lock._file.mode == 'r+'
+    assert lock._file.mode == "rb+"
 
     lock.release_write()
     assert lock._reads == 1
     assert lock._writes == 0
-    assert lock._file.mode == 'r+'
+    assert lock._file.mode == "rb+"
 
     lock.release_read()
     assert lock._reads == 0
@@ -629,7 +671,7 @@ def test_upgrade_read_to_write_fails_with_readonly_file(private_lock_path):
     # ensure lock file exists the first time
     touch(private_lock_path)
 
-    # open it read-only to begin wtih.
+    # open it read-only to begin with.
     with read_only(private_lock_path):
         lock = lk.Lock(private_lock_path)
         assert lock._reads == 0
@@ -638,26 +680,28 @@ def test_upgrade_read_to_write_fails_with_readonly_file(private_lock_path):
         lock.acquire_read()
         assert lock._reads == 1
         assert lock._writes == 0
-        assert lock._file.mode == 'r'
+        assert lock._file.mode == "rb"
 
-        # upgrade to writ here
+        # upgrade to write here
         with pytest.raises(lk.LockROFileError):
             lock.acquire_write()
 
+        # TODO: lk.FILE_TRACKER does not release private_lock_path
+        lk.FILE_TRACKER.release_by_stat(os.stat(private_lock_path))
 
-#
-# Longer test case that ensures locks are reusable. Ordering is
-# enforced by barriers throughout -- steps are shown with numbers.
-#
-def test_complex_acquire_and_release_chain(lock_path):
-    def p1(barrier):
-        lock = lk.Lock(lock_path)
+
+class ComplexAcquireAndRelease:
+    def __init__(self, lock_path):
+        self.lock_path = lock_path
+
+    def p1(self, barrier):
+        lock = lk.Lock(self.lock_path)
 
         lock.acquire_write()
         barrier.wait()  # ---------------------------------------- 1
         # others test timeout
         barrier.wait()  # ---------------------------------------- 2
-        lock.release_write()   # release and others acquire read
+        lock.release_write()  # release and others acquire read
         barrier.wait()  # ---------------------------------------- 3
         with pytest.raises(lk.LockTimeoutError):
             lock.acquire_write(lock_fail_timeout)
@@ -691,8 +735,8 @@ def test_complex_acquire_and_release_chain(lock_path):
         barrier.wait()  # ---------------------------------------- 13
         lock.release_read()
 
-    def p2(barrier):
-        lock = lk.Lock(lock_path)
+    def p2(self, barrier):
+        lock = lk.Lock(self.lock_path)
 
         # p1 acquires write
         barrier.wait()  # ---------------------------------------- 1
@@ -731,8 +775,8 @@ def test_complex_acquire_and_release_chain(lock_path):
         barrier.wait()  # ---------------------------------------- 13
         lock.release_read()
 
-    def p3(barrier):
-        lock = lk.Lock(lock_path)
+    def p3(self, barrier):
+        lock = lk.Lock(self.lock_path)
 
         # p1 acquires write
         barrier.wait()  # ---------------------------------------- 1
@@ -764,218 +808,405 @@ def test_complex_acquire_and_release_chain(lock_path):
         barrier.wait()  # ---------------------------------------- 10
         # others test timeout
         barrier.wait()  # ---------------------------------------- 11
-        lock.release_read()   # release read AND write in opposite
+        lock.release_read()  # release read AND write in opposite
         lock.release_write()  # order from before on p2
         barrier.wait()  # ---------------------------------------- 12
         lock.acquire_read()
         barrier.wait()  # ---------------------------------------- 13
         lock.release_read()
 
-    multiproc_test(p1, p2, p3)
+
+#
+# Longer test case that ensures locks are reusable. Ordering is
+# enforced by barriers throughout -- steps are shown with numbers.
+#
+def test_complex_acquire_and_release_chain(lock_path):
+    test_chain = ComplexAcquireAndRelease(lock_path)
+    multiproc_test(test_chain.p1, test_chain.p2, test_chain.p3)
 
 
-def test_transaction(lock_path):
+class AssertLock(lk.Lock):
+    """Test lock class that marks acquire/release events."""
+
+    def __init__(self, lock_path, vals):
+        super().__init__(lock_path)
+        self.vals = vals
+
+    # assert hooks for subclasses
+    assert_acquire_read = lambda self: None
+    assert_acquire_write = lambda self: None
+    assert_release_read = lambda self: None
+    assert_release_write = lambda self: None
+
+    def acquire_read(self, timeout=None):
+        self.assert_acquire_read()
+        result = super().acquire_read(timeout)
+        self.vals["acquired_read"] = True
+        return result
+
+    def acquire_write(self, timeout=None):
+        self.assert_acquire_write()
+        result = super().acquire_write(timeout)
+        self.vals["acquired_write"] = True
+        return result
+
+    def release_read(self, release_fn=None):
+        self.assert_release_read()
+        result = super().release_read(release_fn)
+        self.vals["released_read"] = True
+        return result
+
+    def release_write(self, release_fn=None):
+        self.assert_release_write()
+        result = super().release_write(release_fn)
+        self.vals["released_write"] = True
+        return result
+
+
+@pytest.mark.parametrize(
+    "transaction,type", [(lk.ReadTransaction, "read"), (lk.WriteTransaction, "write")]
+)
+def test_transaction(lock_path, transaction, type):
+    class MockLock(AssertLock):
+        def assert_acquire_read(self):
+            assert not vals["entered_fn"]
+            assert not vals["exited_fn"]
+
+        def assert_release_read(self):
+            assert vals["entered_fn"]
+            assert not vals["exited_fn"]
+
+        def assert_acquire_write(self):
+            assert not vals["entered_fn"]
+            assert not vals["exited_fn"]
+
+        def assert_release_write(self):
+            assert vals["entered_fn"]
+            assert not vals["exited_fn"]
+
     def enter_fn():
-        vals['entered'] = True
+        # assert enter_fn is called while lock is held
+        assert vals["acquired_%s" % type]
+        vals["entered_fn"] = True
 
     def exit_fn(t, v, tb):
-        vals['exited'] = True
-        vals['exception'] = (t or v or tb)
+        # assert exit_fn is called while lock is held
+        assert not vals["released_%s" % type]
+        vals["exited_fn"] = True
+        vals["exception"] = t or v or tb
 
-    lock = lk.Lock(lock_path)
-    vals = {'entered': False, 'exited': False, 'exception': False}
-    with lk.ReadTransaction(lock, enter_fn, exit_fn):
-        pass
+    vals = collections.defaultdict(lambda: False)
+    lock = MockLock(lock_path, vals)
 
-    assert vals['entered']
-    assert vals['exited']
-    assert not vals['exception']
+    with transaction(lock, acquire=enter_fn, release=exit_fn):
+        assert vals["acquired_%s" % type]
+        assert not vals["released_%s" % type]
 
-    vals = {'entered': False, 'exited': False, 'exception': False}
-    with lk.WriteTransaction(lock, enter_fn, exit_fn):
-        pass
-
-    assert vals['entered']
-    assert vals['exited']
-    assert not vals['exception']
+    assert vals["entered_fn"]
+    assert vals["exited_fn"]
+    assert vals["acquired_%s" % type]
+    assert vals["released_%s" % type]
+    assert not vals["exception"]
 
 
-def test_transaction_with_exception(lock_path):
+@pytest.mark.parametrize(
+    "transaction,type", [(lk.ReadTransaction, "read"), (lk.WriteTransaction, "write")]
+)
+def test_transaction_with_exception(lock_path, transaction, type):
+    class MockLock(AssertLock):
+        def assert_acquire_read(self):
+            assert not vals["entered_fn"]
+            assert not vals["exited_fn"]
+
+        def assert_release_read(self):
+            assert vals["entered_fn"]
+            assert not vals["exited_fn"]
+
+        def assert_acquire_write(self):
+            assert not vals["entered_fn"]
+            assert not vals["exited_fn"]
+
+        def assert_release_write(self):
+            assert vals["entered_fn"]
+            assert not vals["exited_fn"]
+
     def enter_fn():
-        vals['entered'] = True
+        assert vals["acquired_%s" % type]
+        vals["entered_fn"] = True
 
     def exit_fn(t, v, tb):
-        vals['exited'] = True
-        vals['exception'] = (t or v or tb)
+        assert not vals["released_%s" % type]
+        vals["exited_fn"] = True
+        vals["exception"] = t or v or tb
+        return exit_result
 
-    lock = lk.Lock(lock_path)
+    exit_result = False
+    vals = collections.defaultdict(lambda: False)
+    lock = MockLock(lock_path, vals)
 
-    def do_read_with_exception():
-        with lk.ReadTransaction(lock, enter_fn, exit_fn):
+    with pytest.raises(Exception):
+        with transaction(lock, acquire=enter_fn, release=exit_fn):
             raise Exception()
 
-    def do_write_with_exception():
-        with lk.WriteTransaction(lock, enter_fn, exit_fn):
-            raise Exception()
+    assert vals["entered_fn"]
+    assert vals["exited_fn"]
+    assert vals["exception"]
 
-    vals = {'entered': False, 'exited': False, 'exception': False}
-    with pytest.raises(Exception):
-        do_read_with_exception()
-    assert vals['entered']
-    assert vals['exited']
-    assert vals['exception']
+    # test suppression of exceptions from exit_fn
+    exit_result = True
+    vals.clear()
 
-    vals = {'entered': False, 'exited': False, 'exception': False}
-    with pytest.raises(Exception):
-        do_write_with_exception()
-    assert vals['entered']
-    assert vals['exited']
-    assert vals['exception']
+    # should not raise now.
+    with transaction(lock, acquire=enter_fn, release=exit_fn):
+        raise Exception()
+
+    assert vals["entered_fn"]
+    assert vals["exited_fn"]
+    assert vals["exception"]
 
 
-def test_transaction_with_context_manager(lock_path):
-    class TestContextManager(object):
+@pytest.mark.parametrize(
+    "transaction,type", [(lk.ReadTransaction, "read"), (lk.WriteTransaction, "write")]
+)
+def test_transaction_with_context_manager(lock_path, transaction, type):
+    class MockLock(AssertLock):
+        def assert_acquire_read(self):
+            assert not vals["entered_ctx"]
+            assert not vals["exited_ctx"]
 
+        def assert_release_read(self):
+            assert vals["entered_ctx"]
+            assert vals["exited_ctx"]
+
+        def assert_acquire_write(self):
+            assert not vals["entered_ctx"]
+            assert not vals["exited_ctx"]
+
+        def assert_release_write(self):
+            assert vals["entered_ctx"]
+            assert vals["exited_ctx"]
+
+    class TestContextManager:
         def __enter__(self):
-            vals['entered'] = True
+            vals["entered_ctx"] = True
 
         def __exit__(self, t, v, tb):
-            vals['exited'] = True
-            vals['exception'] = (t or v or tb)
+            assert not vals["released_%s" % type]
+            vals["exited_ctx"] = True
+            vals["exception_ctx"] = t or v or tb
+            return exit_ctx_result
 
     def exit_fn(t, v, tb):
-        vals['exited_fn'] = True
-        vals['exception_fn'] = (t or v or tb)
+        assert not vals["released_%s" % type]
+        vals["exited_fn"] = True
+        vals["exception_fn"] = t or v or tb
+        return exit_fn_result
 
-    lock = lk.Lock(lock_path)
+    exit_fn_result, exit_ctx_result = False, False
+    vals = collections.defaultdict(lambda: False)
+    lock = MockLock(lock_path, vals)
 
-    vals = {'entered': False, 'exited': False, 'exited_fn': False,
-            'exception': False, 'exception_fn': False}
-    with lk.ReadTransaction(lock, TestContextManager, exit_fn):
+    with transaction(lock, acquire=TestContextManager, release=exit_fn):
         pass
 
-    assert vals['entered']
-    assert vals['exited']
-    assert not vals['exception']
-    assert vals['exited_fn']
-    assert not vals['exception_fn']
+    assert vals["entered_ctx"]
+    assert vals["exited_ctx"]
+    assert vals["exited_fn"]
+    assert not vals["exception_ctx"]
+    assert not vals["exception_fn"]
 
-    vals = {'entered': False, 'exited': False, 'exited_fn': False,
-            'exception': False, 'exception_fn': False}
-    with lk.ReadTransaction(lock, TestContextManager):
+    vals.clear()
+    with transaction(lock, acquire=TestContextManager):
         pass
 
-    assert vals['entered']
-    assert vals['exited']
-    assert not vals['exception']
-    assert not vals['exited_fn']
-    assert not vals['exception_fn']
+    assert vals["entered_ctx"]
+    assert vals["exited_ctx"]
+    assert not vals["exited_fn"]
+    assert not vals["exception_ctx"]
+    assert not vals["exception_fn"]
 
-    vals = {'entered': False, 'exited': False, 'exited_fn': False,
-            'exception': False, 'exception_fn': False}
-    with lk.WriteTransaction(lock, TestContextManager, exit_fn):
-        pass
+    # below are tests for exceptions with and without suppression
+    def assert_ctx_and_fn_exception(raises=True):
+        vals.clear()
 
-    assert vals['entered']
-    assert vals['exited']
-    assert not vals['exception']
-    assert vals['exited_fn']
-    assert not vals['exception_fn']
+        if raises:
+            with pytest.raises(Exception):
+                with transaction(lock, acquire=TestContextManager, release=exit_fn):
+                    raise Exception()
+        else:
+            with transaction(lock, acquire=TestContextManager, release=exit_fn):
+                raise Exception()
 
-    vals = {'entered': False, 'exited': False, 'exited_fn': False,
-            'exception': False, 'exception_fn': False}
-    with lk.WriteTransaction(lock, TestContextManager):
-        pass
+        assert vals["entered_ctx"]
+        assert vals["exited_ctx"]
+        assert vals["exited_fn"]
+        assert vals["exception_ctx"]
+        assert vals["exception_fn"]
 
-    assert vals['entered']
-    assert vals['exited']
-    assert not vals['exception']
-    assert not vals['exited_fn']
-    assert not vals['exception_fn']
+    def assert_only_ctx_exception(raises=True):
+        vals.clear()
 
+        if raises:
+            with pytest.raises(Exception):
+                with transaction(lock, acquire=TestContextManager):
+                    raise Exception()
+        else:
+            with transaction(lock, acquire=TestContextManager):
+                raise Exception()
 
-def test_transaction_with_context_manager_and_exception(lock_path):
-    class TestContextManager(object):
-        def __enter__(self):
-            vals['entered'] = True
+        assert vals["entered_ctx"]
+        assert vals["exited_ctx"]
+        assert not vals["exited_fn"]
+        assert vals["exception_ctx"]
+        assert not vals["exception_fn"]
 
-        def __exit__(self, t, v, tb):
-            vals['exited'] = True
-            vals['exception'] = (t or v or tb)
+    # no suppression
+    assert_ctx_and_fn_exception(raises=True)
+    assert_only_ctx_exception(raises=True)
 
-    def exit_fn(t, v, tb):
-        vals['exited_fn'] = True
-        vals['exception_fn'] = (t or v or tb)
+    # suppress exception only in function
+    exit_fn_result, exit_ctx_result = True, False
+    assert_ctx_and_fn_exception(raises=False)
+    assert_only_ctx_exception(raises=True)
 
-    lock = lk.Lock(lock_path)
+    # suppress exception only in context
+    exit_fn_result, exit_ctx_result = False, True
+    assert_ctx_and_fn_exception(raises=False)
+    assert_only_ctx_exception(raises=False)
 
-    def do_read_with_exception(exit_fn):
-        with lk.ReadTransaction(lock, TestContextManager, exit_fn):
-            raise Exception()
-
-    def do_write_with_exception(exit_fn):
-        with lk.WriteTransaction(lock, TestContextManager, exit_fn):
-            raise Exception()
-
-    vals = {'entered': False, 'exited': False, 'exited_fn': False,
-            'exception': False, 'exception_fn': False}
-    with pytest.raises(Exception):
-        do_read_with_exception(exit_fn)
-    assert vals['entered']
-    assert vals['exited']
-    assert vals['exception']
-    assert vals['exited_fn']
-    assert vals['exception_fn']
-
-    vals = {'entered': False, 'exited': False, 'exited_fn': False,
-            'exception': False, 'exception_fn': False}
-    with pytest.raises(Exception):
-        do_read_with_exception(None)
-    assert vals['entered']
-    assert vals['exited']
-    assert vals['exception']
-    assert not vals['exited_fn']
-    assert not vals['exception_fn']
-
-    vals = {'entered': False, 'exited': False, 'exited_fn': False,
-            'exception': False, 'exception_fn': False}
-    with pytest.raises(Exception):
-        do_write_with_exception(exit_fn)
-    assert vals['entered']
-    assert vals['exited']
-    assert vals['exception']
-    assert vals['exited_fn']
-    assert vals['exception_fn']
-
-    vals = {'entered': False, 'exited': False, 'exited_fn': False,
-            'exception': False, 'exception_fn': False}
-    with pytest.raises(Exception):
-        do_write_with_exception(None)
-    assert vals['entered']
-    assert vals['exited']
-    assert vals['exception']
-    assert not vals['exited_fn']
-    assert not vals['exception_fn']
+    # suppress exception in function and context
+    exit_fn_result, exit_ctx_result = True, True
+    assert_ctx_and_fn_exception(raises=False)
+    assert_only_ctx_exception(raises=False)
 
 
-def test_lock_debug_output(lock_path):
-    host = socket.getfqdn()
+def test_nested_write_transaction(lock_path):
+    """Ensure that the outermost write transaction writes."""
 
-    def p1(barrier, q1, q2):
+    def write(t, v, tb):
+        vals["wrote"] = True
+
+    vals = collections.defaultdict(lambda: False)
+    lock = AssertLock(lock_path, vals)
+
+    # write/write
+    with lk.WriteTransaction(lock, release=write):
+        assert not vals["wrote"]
+        with lk.WriteTransaction(lock, release=write):
+            assert not vals["wrote"]
+        assert not vals["wrote"]
+    assert vals["wrote"]
+
+    # read/write
+    vals.clear()
+    with lk.ReadTransaction(lock):
+        assert not vals["wrote"]
+        with lk.WriteTransaction(lock, release=write):
+            assert not vals["wrote"]
+        assert vals["wrote"]
+
+    # write/read/write
+    vals.clear()
+    with lk.WriteTransaction(lock, release=write):
+        assert not vals["wrote"]
+        with lk.ReadTransaction(lock):
+            assert not vals["wrote"]
+            with lk.WriteTransaction(lock, release=write):
+                assert not vals["wrote"]
+            assert not vals["wrote"]
+        assert not vals["wrote"]
+    assert vals["wrote"]
+
+    # read/write/read/write
+    vals.clear()
+    with lk.ReadTransaction(lock):
+        with lk.WriteTransaction(lock, release=write):
+            assert not vals["wrote"]
+            with lk.ReadTransaction(lock):
+                assert not vals["wrote"]
+                with lk.WriteTransaction(lock, release=write):
+                    assert not vals["wrote"]
+                assert not vals["wrote"]
+            assert not vals["wrote"]
+        assert vals["wrote"]
+
+
+def test_nested_reads(lock_path):
+    """Ensure that write transactions won't re-read data."""
+
+    def read():
+        vals["read"] += 1
+
+    vals = collections.defaultdict(lambda: 0)
+    lock = AssertLock(lock_path, vals)
+
+    # read/read
+    vals.clear()
+    assert vals["read"] == 0
+    with lk.ReadTransaction(lock, acquire=read):
+        assert vals["read"] == 1
+        with lk.ReadTransaction(lock, acquire=read):
+            assert vals["read"] == 1
+
+    # write/write
+    vals.clear()
+    assert vals["read"] == 0
+    with lk.WriteTransaction(lock, acquire=read):
+        assert vals["read"] == 1
+        with lk.WriteTransaction(lock, acquire=read):
+            assert vals["read"] == 1
+
+    # read/write
+    vals.clear()
+    assert vals["read"] == 0
+    with lk.ReadTransaction(lock, acquire=read):
+        assert vals["read"] == 1
+        with lk.WriteTransaction(lock, acquire=read):
+            assert vals["read"] == 1
+
+    # write/read/write
+    vals.clear()
+    assert vals["read"] == 0
+    with lk.WriteTransaction(lock, acquire=read):
+        assert vals["read"] == 1
+        with lk.ReadTransaction(lock, acquire=read):
+            assert vals["read"] == 1
+            with lk.WriteTransaction(lock, acquire=read):
+                assert vals["read"] == 1
+
+    # read/write/read/write
+    vals.clear()
+    assert vals["read"] == 0
+    with lk.ReadTransaction(lock, acquire=read):
+        assert vals["read"] == 1
+        with lk.WriteTransaction(lock, acquire=read):
+            assert vals["read"] == 1
+            with lk.ReadTransaction(lock, acquire=read):
+                assert vals["read"] == 1
+                with lk.WriteTransaction(lock, acquire=read):
+                    assert vals["read"] == 1
+
+
+class LockDebugOutput:
+    def __init__(self, lock_path):
+        self.lock_path = lock_path
+        self.host = socket.gethostname()
+
+    def p1(self, barrier, q1, q2):
         # exchange pids
         p1_pid = os.getpid()
         q1.put(p1_pid)
         p2_pid = q2.get()
 
         # set up lock
-        lock = lk.Lock(lock_path, debug=True)
+        lock = lk.Lock(self.lock_path, debug=True)
 
         with lk.WriteTransaction(lock):
             # p1 takes write lock and writes pid/host to file
             barrier.wait()  # ------------------------------------ 1
 
         assert lock.pid == p1_pid
-        assert lock.host == host
+        assert lock.host == self.host
 
         # wait for p2 to verify contents of file
         barrier.wait()  # ---------------------------------------- 2
@@ -986,21 +1217,21 @@ def test_lock_debug_output(lock_path):
         # verify pid/host info again
         with lk.ReadTransaction(lock):
             assert lock.old_pid == p1_pid
-            assert lock.old_host == host
+            assert lock.old_host == self.host
 
             assert lock.pid == p2_pid
-            assert lock.host == host
+            assert lock.host == self.host
 
         barrier.wait()  # ---------------------------------------- 4
 
-    def p2(barrier, q1, q2):
+    def p2(self, barrier, q1, q2):
         # exchange pids
         p2_pid = os.getpid()
         p1_pid = q1.get()
         q2.put(p2_pid)
 
         # set up lock
-        lock = lk.Lock(lock_path, debug=True)
+        lock = lk.Lock(self.lock_path, debug=True)
 
         # p1 takes write lock and writes pid/host to file
         barrier.wait()  # ---------------------------------------- 1
@@ -1008,31 +1239,34 @@ def test_lock_debug_output(lock_path):
         # verify that p1 wrote information to lock file
         with lk.ReadTransaction(lock):
             assert lock.pid == p1_pid
-            assert lock.host == host
+            assert lock.host == self.host
 
         barrier.wait()  # ---------------------------------------- 2
 
         # take a write lock on the file and verify pid/host info
         with lk.WriteTransaction(lock):
             assert lock.old_pid == p1_pid
-            assert lock.old_host == host
+            assert lock.old_host == self.host
 
             assert lock.pid == p2_pid
-            assert lock.host == host
+            assert lock.host == self.host
 
             barrier.wait()  # ------------------------------------ 3
 
         # wait for p1 to verify pid/host info
         barrier.wait()  # ---------------------------------------- 4
 
+
+def test_lock_debug_output(lock_path):
+    test_debug = LockDebugOutput(lock_path)
     q1, q2 = Queue(), Queue()
-    local_multiproc_test(p2, p1, extra_args=(q1, q2))
+    local_multiproc_test(test_debug.p2, test_debug.p1, extra_args=(q1, q2))
 
 
 def test_lock_with_no_parent_directory(tmpdir):
     """Make sure locks work even when their parent directory does not exist."""
     with tmpdir.as_cwd():
-        lock = lk.Lock('foo/bar/baz/lockfile')
+        lock = lk.Lock("foo/bar/baz/lockfile")
         with lk.WriteTransaction(lock):
             pass
 
@@ -1041,7 +1275,7 @@ def test_lock_in_current_directory(tmpdir):
     """Make sure locks work even when their parent directory does not exist."""
     with tmpdir.as_cwd():
         # test we can create a lock in the current directory
-        lock = lk.Lock('lockfile')
+        lock = lk.Lock("lockfile")
         for i in range(10):
             with lk.ReadTransaction(lock):
                 pass
@@ -1049,9 +1283,98 @@ def test_lock_in_current_directory(tmpdir):
                 pass
 
         # and that we can do the same thing after it's already there
-        lock = lk.Lock('lockfile')
+        lock = lk.Lock("lockfile")
         for i in range(10):
             with lk.ReadTransaction(lock):
                 pass
             with lk.WriteTransaction(lock):
                 pass
+
+
+def test_attempts_str():
+    assert lk._attempts_str(0, 0) == ""
+    assert lk._attempts_str(0.12, 1) == ""
+    assert lk._attempts_str(12.345, 2) == " after 12.345s and 2 attempts"
+
+
+def test_lock_str():
+    lock = lk.Lock("lockfile")
+    lockstr = str(lock)
+    assert "lockfile[0:0]" in lockstr
+    assert "timeout=None" in lockstr
+    assert "#reads=0, #writes=0" in lockstr
+
+
+def test_downgrade_write_okay(tmpdir):
+    """Test the lock write-to-read downgrade operation."""
+    with tmpdir.as_cwd():
+        lock = lk.Lock("lockfile")
+        lock.acquire_write()
+        lock.downgrade_write_to_read()
+        assert lock._reads == 1
+        assert lock._writes == 0
+        lock.release_read()
+
+
+def test_downgrade_write_fails(tmpdir):
+    """Test failing the lock write-to-read downgrade operation."""
+    with tmpdir.as_cwd():
+        lock = lk.Lock("lockfile")
+        lock.acquire_read()
+        msg = "Cannot downgrade lock from write to read on file: lockfile"
+        with pytest.raises(lk.LockDowngradeError, match=msg):
+            lock.downgrade_write_to_read()
+        lock.release_read()
+
+
+@pytest.mark.parametrize(
+    "err_num,err_msg",
+    [
+        (errno.EACCES, "Fake EACCES error"),
+        (errno.EAGAIN, "Fake EAGAIN error"),
+        (errno.ENOENT, "Fake ENOENT error"),
+    ],
+)
+def test_poll_lock_exception(tmpdir, monkeypatch, err_num, err_msg):
+    """Test poll lock exception handling."""
+
+    def _lockf(fd, cmd, len, start, whence):
+        raise IOError(err_num, err_msg)
+
+    with tmpdir.as_cwd():
+        lockfile = "lockfile"
+        lock = lk.Lock(lockfile)
+        lock.acquire_read()
+
+        monkeypatch.setattr(fcntl, "lockf", _lockf)
+
+        if err_num in [errno.EAGAIN, errno.EACCES]:
+            assert not lock._poll_lock(fcntl.LOCK_EX)
+        else:
+            with pytest.raises(IOError, match=err_msg):
+                lock._poll_lock(fcntl.LOCK_EX)
+
+        monkeypatch.undo()
+        lock.release_read()
+
+
+def test_upgrade_read_okay(tmpdir):
+    """Test the lock read-to-write upgrade operation."""
+    with tmpdir.as_cwd():
+        lock = lk.Lock("lockfile")
+        lock.acquire_read()
+        lock.upgrade_read_to_write()
+        assert lock._reads == 0
+        assert lock._writes == 1
+        lock.release_write()
+
+
+def test_upgrade_read_fails(tmpdir):
+    """Test failing the lock read-to-write upgrade operation."""
+    with tmpdir.as_cwd():
+        lock = lk.Lock("lockfile")
+        lock.acquire_write()
+        msg = "Cannot upgrade lock from read to write on file: lockfile"
+        with pytest.raises(lk.LockUpgradeError, match=msg):
+            lock.upgrade_read_to_write()
+        lock.release_write()

@@ -1,19 +1,24 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class RVipor(RPackage):
-    """Plot Categorical Data Using Quasirandom Noise and Density Estimates"""
+    """Plot Categorical Data Using Quasirandom Noise and Density Estimates.
 
-    homepage = "https://cran.r-project.org/package=vipor"
-    url      = "https://cran.r-project.org/src/contrib/vipor_0.4.5.tar.gz"
-    list_url = "https://cran.r-project.org/src/contrib/Archive/vipor"
+    Generate a violin point plot, a combination of a violin/histogram plot and
+    a scatter plot by offsetting points within a category based on their
+    density using quasirandom noise."""
 
-    version('0.4.5', 'd08bc95b3aaf1574bf41b7eb41b67ce4')
-    version('0.4.4', '834212e3971787809ba9737744d54dee')
+    cran = "vipor"
 
-    depends_on('r@3.0.0:', type=('build', 'run'))
+    license("GPL-2.0-or-later")
+
+    version("0.4.7", sha256="baad41e9ddaa13b5a1db1abab34253b27d5b99e5a6a649b2036aaf1483370b9e")
+    version("0.4.5", sha256="7d19251ac37639d6a0fed2d30f1af4e578785677df5e53dcdb2a22771a604f84")
+    version("0.4.4", sha256="5abfd7869dae42ae2e4f52206c23433a43b485b1220685e445877ee5864a3f5c")
+
+    depends_on("r@3.0.0:", type=("build", "run"))
+    depends_on("r@3.5.0:", type=("build", "run"), when="@0.4.7:")

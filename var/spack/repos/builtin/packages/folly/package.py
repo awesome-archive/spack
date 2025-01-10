@@ -1,13 +1,12 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 
-from spack import *
+from spack.package import *
 
 
-class Folly(AutotoolsPackage):
+class Folly(CMakePackage):
     """Folly (acronymed loosely after Facebook Open Source Library) is a
     library of C++11 components designed with practicality and efficiency
     in mind.
@@ -18,29 +17,52 @@ class Folly(AutotoolsPackage):
     """
 
     homepage = "https://github.com/facebook/folly"
-    url = "https://github.com/facebook/folly/archive/v2017.06.05.00.tar.gz"
+    url = "https://github.com/facebook/folly/releases/download/v2021.05.24.00/folly-v2021.05.24.00.tar.gz"
 
-    version('2017.06.05.00', 'a25e8d646702c3e0c1400f591e485a33')
-    version('2016.11.14.00', '88550acdb4d4b331c0ca9922039c8727')
-    version('2016.11.07.00', '2f605b20ad539bccdbfd361daa92081e')
-    version('2016.10.31.00', 'ab3049302792f8470cef64f3a29eedec')
-    version('2016.10.24.00', '0445efb7c16b5c32dfbb173157e54866')
-    version('2016.10.17.00', 'b7e01934a45c5036fab8fdc70e9eaf4d')
+    license("MIT")
 
-    depends_on('m4', type='build')
-    depends_on('autoconf', type='build')
-    depends_on('automake', type='build')
-    depends_on('libtool', type='build')
-    depends_on('pkgconfig', type='build')
+    version(
+        "2021.05.24.00", sha256="9d308adefe4670637f5c7d96309b3b394ac3fa129bc954f5dfbdd8b741c02aad"
+    )
 
-    # TODO: folly requires gcc 4.9+ and a version of boost compiled with
-    # TODO: C++14 support (but there's no neat way to check that these
-    # TODO: constraints are met right now)
-    depends_on('boost')
+    depends_on("c", type="build")  # generated
+    depends_on("cxx", type="build")  # generated
 
-    depends_on('gflags')
-    depends_on('glog')
-    depends_on('double-conversion')
-    depends_on('libevent')
+    # CMakePackage Dependency
+    depends_on("pkgconfig", type="build")
 
-    configure_directory = 'folly'
+    # folly requires gcc 5+ and a version of boost compiled with >= C++14
+    variant(
+        "cxxstd",
+        default="14",
+        values=("14", "17"),
+        multi=False,
+        description="Use the specified C++ standard when building.",
+    )
+    depends_on(
+        "boost+context+container+exception+filesystem+program_options"
+        "+regex+serialization+system+thread cxxstd=14",
+        when="cxxstd=14",
+    )
+    depends_on(
+        "boost+context+container+exception+filesystem+program_options"
+        "+regex+serialization+system+thread cxxstd=17",
+        when="cxxstd=17",
+    )
+
+    # required dependencies
+    depends_on("gflags")
+    depends_on("glog")
+    depends_on("double-conversion")
+    depends_on("libevent")
+    depends_on("fmt")
+
+    # optional dependencies
+    variant("libdwarf", default=False, description="Optional Dependency")
+    variant("elfutils", default=False, description="Optional Dependency")
+    variant("libunwind", default=False, description="Optional Dependency")
+    depends_on("libdwarf", when="+libdwarf")
+    depends_on("elfutils", when="+elfutils")
+    depends_on("libunwind", when="+libunwind")
+
+    configure_directory = "folly"

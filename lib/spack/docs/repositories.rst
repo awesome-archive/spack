@@ -1,15 +1,14 @@
-.. Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-   Spack Project Developers. See the top-level COPYRIGHT file for details.
+.. Copyright Spack Project Developers. See COPYRIGHT file for details.
 
    SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 .. _repositories:
 
-=============================
-Package Repositories
-=============================
+=================================
+Package Repositories (repos.yaml)
+=================================
 
-Spack comes with over 1,000 built-in package recipes in
+Spack comes with thousands of built-in package recipes in
 ``var/spack/repos/builtin/``.  This is a **package repository** -- a
 directory that Spack searches when it needs to find a package by name.
 You may need to maintain packages for restricted, proprietary or
@@ -17,7 +16,7 @@ experimental software separately from the built-in repository. Spack
 allows you to configure local repositories using either the
 ``repos.yaml`` or the ``spack repo`` command.
 
-A package repository a directory structured like this::
+A package repository is a directory structured like this::
 
   repo/
       repo.yaml
@@ -32,10 +31,15 @@ A package repository a directory structured like this::
           ...
 
 The top-level ``repo.yaml`` file contains configuration metadata for the
-repository, and the ``packages`` directory contains subdirectories for
-each package in the repository.  Each package directory contains a
-``package.py`` file and any patches or other files needed to build the
+repository. The packages subdirectory, typically ``packages``, contains
+subdirectories for each package in the repository.  Each package directory
+contains a ``package.py`` file and any patches or other files needed to build the
 package.
+
+The ``repo.yaml`` file may also contain a ``subdirectory`` key,
+which can modify the name of the subdirectory used for packages. As seen above,
+the default value is ``packages``. An empty string (``subdirectory: ''``) requires
+a flattened repo structure in which the package names are top-level subdirectories.
 
 Package repositories allow you to:
 
@@ -280,16 +284,16 @@ you install it, you can use ``spack spec -N``:
 
    Concretized
    --------------------------------
-   builtin.hdf5@1.10.0-patch1%clang@7.0.2-apple+cxx~debug+fortran+mpi+shared~szip~threadsafe arch=darwin-elcapitan-x86_64
-       ^builtin.openmpi@2.0.1%clang@7.0.2-apple~mxm~pmi~psm~psm2~slurm~sqlite3~thread_multiple~tm~verbs+vt arch=darwin-elcapitan-x86_64
-           ^builtin.hwloc@1.11.4%clang@7.0.2-apple arch=darwin-elcapitan-x86_64
-               ^builtin.libpciaccess@0.13.4%clang@7.0.2-apple arch=darwin-elcapitan-x86_64
-                   ^builtin.libtool@2.4.6%clang@7.0.2-apple arch=darwin-elcapitan-x86_64
-                       ^builtin.m4@1.4.17%clang@7.0.2-apple+sigsegv arch=darwin-elcapitan-x86_64
-                           ^builtin.libsigsegv@2.10%clang@7.0.2-apple arch=darwin-elcapitan-x86_64
-                   ^builtin.pkg-config@0.29.1%clang@7.0.2-apple+internal_glib arch=darwin-elcapitan-x86_64
-                   ^builtin.util-macros@1.19.0%clang@7.0.2-apple arch=darwin-elcapitan-x86_64
-       ^builtin.zlib@1.2.8%clang@7.0.2-apple+pic arch=darwin-elcapitan-x86_64
+   builtin.hdf5@1.10.0-patch1%apple-clang@7.0.2+cxx~debug+fortran+mpi+shared~szip~threadsafe arch=darwin-elcapitan-x86_64
+       ^builtin.openmpi@2.0.1%apple-clang@7.0.2~mxm~pmi~psm~psm2~slurm~sqlite3~thread_multiple~tm~verbs+vt arch=darwin-elcapitan-x86_64
+           ^builtin.hwloc@1.11.4%apple-clang@7.0.2 arch=darwin-elcapitan-x86_64
+               ^builtin.libpciaccess@0.13.4%apple-clang@7.0.2 arch=darwin-elcapitan-x86_64
+                   ^builtin.libtool@2.4.6%apple-clang@7.0.2 arch=darwin-elcapitan-x86_64
+                       ^builtin.m4@1.4.17%apple-clang@7.0.2+sigsegv arch=darwin-elcapitan-x86_64
+                           ^builtin.libsigsegv@2.10%apple-clang@7.0.2 arch=darwin-elcapitan-x86_64
+                   ^builtin.pkg-config@0.29.1%apple-clang@7.0.2+internal_glib arch=darwin-elcapitan-x86_64
+                   ^builtin.util-macros@1.19.0%apple-clang@7.0.2 arch=darwin-elcapitan-x86_64
+       ^builtin.zlib@1.2.8%apple-clang@7.0.2+pic arch=darwin-elcapitan-x86_64
 
 .. warning::
 
@@ -335,7 +339,7 @@ merged YAML from all configuration files, use ``spack config get repos``:
    - ~/myrepo
    - $spack/var/spack/repos/builtin
 
-mNote that, unlike ``spack repo list``, this does not include the
+Note that, unlike ``spack repo list``, this does not include the
 namespace, which is read from each repo's ``repo.yaml``.
 
 ^^^^^^^^^^^^^^^^^^^^^
@@ -372,6 +376,24 @@ You can supply a custom namespace with a second argument, e.g.:
   $ cat myrepo/repo.yaml
   repo:
     namespace: 'llnl.comp'
+
+You can also create repositories with custom structure with the ``-d/--subdirectory``
+argument, e.g.:
+
+.. code-block:: console
+
+  $ spack repo create -d applications myrepo apps
+  ==> Created repo with namespace 'apps'.
+  ==> To register it with Spack, run this command:
+    spack repo add ~/myrepo
+
+  $ ls myrepo
+  applications/  repo.yaml
+
+  $ cat myrepo/repo.yaml
+  repo:
+    namespace: apps
+    subdirectory: applications
 
 ^^^^^^^^^^^^^^^^^^
 ``spack repo add``
@@ -453,9 +475,3 @@ implemented using Python's built-in `sys.path
 :py:mod:`spack.repo` module implements a custom `Python importer
 <https://docs.python.org/2/library/imp.html>`_.
 
-.. warning::
-
-   The mechanism for extending packages is not yet extensively tested,
-   and extending packages across repositories imposes inter-repo
-   dependencies, which may be hard to manage.  Use this feature at your
-   own risk, but let us know if you have a use case for it.

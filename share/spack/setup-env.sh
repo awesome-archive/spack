@@ -1,5 +1,4 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
@@ -7,8 +6,8 @@
 ########################################################################
 #
 # This file is part of Spack and sets up the spack environment for bash,
-# zsh, and dash (sh).  This includes dotkit support, module support, and
-# it also puts spack in your path.  The script also checks that at least
+# zsh, and dash (sh).  This includes environment modules and lmod support,
+# and it also puts spack in your path. The script also checks that at least
 # module support exists, and provides suggestions if it doesn't. Source
 # it like this:
 #
@@ -16,30 +15,44 @@
 #
 ########################################################################
 # This is a wrapper around the spack command that forwards calls to
-# 'spack use' and 'spack unuse' to shell functions.  This in turn
-# allows them to be used to invoke dotkit functions.
+# 'spack load' and 'spack unload' to shell functions.  This in turn
+# allows them to be used to invoke environment modules functions.
 #
-# 'spack use' is smarter than just 'use' because it converts its
-# arguments into a unique spack spec that is then passed to dotkit
+# 'spack load' is smarter than just 'load' because it converts its
+# arguments into a unique Spack spec that is then passed to module
 # commands.  This allows the user to use packages without knowing all
 # their installation details.
 #
 # e.g., rather than requiring a full spec for libelf, the user can type:
 #
-#     spack use libelf
+#     spack load libelf
 #
-# This will first find the available libelf dotkits and use a
+# This will first find the available libelf module file and use a
 # matching one.  If there are two versions of libelf, the user would
 # need to be more specific, e.g.:
 #
-#     spack use libelf@0.8.13
+#     spack load libelf@0.8.13
 #
 # This is very similar to how regular spack commands work and it
 # avoids the need to come up with a user-friendly naming scheme for
-# spack dotfiles.
+# spack module files.
 ########################################################################
 
-spack() {
+# prevent infinite recursion when spack shells out (e.g., on cray for modules)
+if [ -n "${_sp_initializing:-}" ]; then
+    return 0
+fi
+export _sp_initializing=true
+
+
+_spack_shell_wrapper() {
+    # Store DYLD_* variables from spack shell function
+    # This is necessary because MacOS System Integrity Protection clears
+    # variables that affect dyld on process start.
+    for var in DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH; do
+        eval "if [ -n \"\${${var}-}\" ]; then export SPACK_$var=\${${var}}; fi"
+    done
+
     # Zsh does not do word splitting by default, this enables it for this
     # function only
     if [ -n "${ZSH_VERSION:-}" ]; then
@@ -84,7 +97,7 @@ spack() {
             if [ "$_sp_arg" = "-h" ] || [ "$_sp_arg" = "--help" ]; then
                 command spack cd -h
             else
-                LOC="$(spack location $_sp_arg "$@")"
+                LOC="$(SPACK_COLOR="${SPACK_COLOR:-always}" spack location $_sp_arg "$@")"
                 if [ -d "$LOC" ] ; then
                     cd "$LOC"
                 else
@@ -105,32 +118,46 @@ spack() {
             else
                 case $_sp_arg in
                     activate)
-                        _a="$@"
-                        if [ -z ${1+x} ] || \
-                           [ "${_a#*--sh}" != "$_a" ] || \
-                           [ "${_a#*--csh}" != "$_a" ] || \
-                           [ "${_a#*-h}" != "$_a" ];
+                        # Get --sh, --csh, or -h/--help arguments.
+                        # Space needed here becauses regexes start with a space
+                        # and `-h` may be the only argument.
+                        _a=" $@"
+                        # Space needed here to differentiate between `-h`
+                        # argument and environments with "-h" in the name.
+                        # Also see: https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html#Shell-Parameter-Expansion
+                        if [ "${_a#* --sh}" != "$_a" ] || \
+                           [ "${_a#* --csh}" != "$_a" ] || \
+                           [ "${_a#* -h}" != "$_a" ] || \
+                           [ "${_a#* --help}" != "$_a" ];
                         then
-                            # no args or args contain -h/--help, --sh, or --csh: just execute
+                            # No args or args contain --sh, --csh, or -h/--help: just execute.
                             command spack env activate "$@"
                         else
-                            # actual call to activate: source the output
-                            eval $(command spack $_sp_flags env activate --sh "$@")
+                            # Actual call to activate: source the output.
+                            stdout="$(SPACK_COLOR="${SPACK_COLOR:-always}" command spack $_sp_flags env activate --sh "$@")" || return
+                            eval "$stdout"
                         fi
                         ;;
                     deactivate)
-                        _a="$@"
-                        if [ "${_a#*--sh}" != "$_a" ] || \
-                           [ "${_a#*--csh}" != "$_a" ];
+                        # Get --sh, --csh, or -h/--help arguments.
+                        # Space needed here becauses regexes start with a space
+                        # and `-h` may be the only argument.
+                        _a=" $@"
+                        # Space needed here to differentiate between `--sh`
+                        # argument and environments with "--sh" in the name.
+                        # Also see: https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html#Shell-Parameter-Expansion
+                        if [ "${_a#* --sh}" != "$_a" ] || \
+                           [ "${_a#* --csh}" != "$_a" ];
                         then
-                            # just  execute the command if --sh or --csh are provided
+                            # Args contain --sh or --csh: just execute.
                             command spack env deactivate "$@"
                         elif [ -n "$*" ]; then
-                            # any other arguments are an error or help, so just run help
+                            # Any other arguments are an error or -h/--help: just run help.
                             command spack env deactivate -h
                         else
-                            # no args: source the output of the command
-                            eval $(command spack $_sp_flags env deactivate --sh)
+                            # No args: source the output of the command.
+                            stdout="$(SPACK_COLOR="${SPACK_COLOR:-always}" command spack $_sp_flags env deactivate --sh)" || return
+                            eval "$stdout"
                         fi
                         ;;
                     *)
@@ -140,56 +167,26 @@ spack() {
             fi
             return
             ;;
-        "use"|"unuse"|"load"|"unload")
-            # Shift any other args for use off before parsing spec.
-            _sp_subcommand_args=""
-            _sp_module_args=""
-            while [ "${1#-}" != "${1}" ]; do
-                if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-                    command spack $_sp_flags $_sp_subcommand $_sp_subcommand_args "$@"
-                    return
-                elif [ "$1" = "-r" ] || [ "$1" = "--dependencies" ]; then
-                    _sp_subcommand_args="$_sp_subcommand_args $1"
-                else
-                    _sp_module_args="$_sp_module_args $1"
-                fi
-                shift
-            done
-
-            # Here the user has run use or unuse with a spec.  Find a matching
-            # spec using 'spack module find', then use the appropriate module
-            # tool's commands to add/remove the result from the environment.
-            # If spack module command comes back with an error, do nothing.
-            case $_sp_subcommand in
-                "use")
-                    if _sp_full_spec=$(command spack $_sp_flags module dotkit find $_sp_subcommand_args "$@"); then
-                        use $_sp_module_args $_sp_full_spec
-                    else
-                        $(exit 1)
-                    fi
-                    ;;
-                "unuse")
-                    if _sp_full_spec=$(command spack $_sp_flags module dotkit find $_sp_subcommand_args "$@"); then
-                        unuse $_sp_module_args $_sp_full_spec
-                    else
-                        $(exit 1)
-                    fi
-                    ;;
-                "load")
-                    if _sp_full_spec=$(command spack $_sp_flags module tcl find $_sp_subcommand_args "$@"); then
-                        module load $_sp_module_args $_sp_full_spec
-                    else
-                        $(exit 1)
-                    fi
-                    ;;
-                "unload")
-                    if _sp_full_spec=$(command spack $_sp_flags module tcl find $_sp_subcommand_args "$@"); then
-                        module unload $_sp_module_args $_sp_full_spec
-                    else
-                        $(exit 1)
-                    fi
-                    ;;
-            esac
+        "load"|"unload")
+            # Get --sh, --csh, -h, or --help arguments.
+            # Space needed here becauses regexes start with a space
+            # and `-h` may be the only argument.
+            _a=" $@"
+            # Space needed here to differentiate between `-h`
+            # argument and specs with "-h" in the name.
+            # Also see: https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html#Shell-Parameter-Expansion
+            if [ "${_a#* --sh}" != "$_a" ] || \
+                [ "${_a#* --csh}" != "$_a" ] || \
+                [ "${_a#* -h}" != "$_a" ] || \
+                [ "${_a#* --list}" != "$_a" ] || \
+                [ "${_a#* --help}" != "$_a" ];
+            then
+                # Args contain --sh, --csh, or -h/--help: just execute.
+                command spack $_sp_flags $_sp_subcommand "$@"
+            else
+                stdout="$(SPACK_COLOR="${SPACK_COLOR:-always}" command spack $_sp_flags $_sp_subcommand --sh "$@")" || return
+                eval "$stdout"
+            fi
             ;;
         *)
             command spack $_sp_flags $_sp_subcommand "$@"
@@ -216,9 +213,9 @@ _spack_pathadd() {
     # Do the actual prepending here.
     eval "_pa_oldvalue=\${${_pa_varname}:-}"
 
-    _pa_canonical=":$_pa_oldvalue:"
+    _pa_canonical="$_pa_oldvalue:"
     if [ -d "$_pa_new_path" ] && \
-       [ "${_pa_canonical#*:${_pa_new_path}:}" = "${_pa_canonical}" ];
+       [ "${_pa_canonical#$_pa_new_path:}" = "$_pa_canonical" ];
     then
         if [ -n "$_pa_oldvalue" ]; then
             eval "export $_pa_varname=\"$_pa_new_path:$_pa_oldvalue\""
@@ -229,11 +226,15 @@ _spack_pathadd() {
 }
 
 
-#
 # Determine which shell is being used
-#
 _spack_determine_shell() {
-    if [ -n "${BASH:-}" ]; then
+    if [ -f "/proc/$$/exe" ]; then
+        # If procfs is present this seems a more reliable
+        # way to detect the current shell
+        _sp_exe=$(readlink /proc/$$/exe)
+        # Shell may contain number, like zsh5 instead of zsh
+        basename ${_sp_exe} | tr -d '0123456789'
+    elif [ -n "${BASH:-}" ]; then
         echo bash
     elif [ -n "${ZSH_NAME:-}" ]; then
         echo zsh
@@ -244,10 +245,7 @@ _spack_determine_shell() {
 _sp_shell=$(_spack_determine_shell)
 
 
-# Export spack function so it is available in subshells (only works with bash)
-if [ "$_sp_shell" = bash ]; then
-    export -f spack
-fi
+alias spacktivate="spack env activate"
 
 #
 # Figure out where this file is.
@@ -279,8 +277,13 @@ fi
 #
 # We send cd output to /dev/null to avoid because a lot of users set up
 # their shell so that cd prints things out to the tty.
-_sp_share_dir="$(cd "$(dirname $_sp_source_file)" > /dev/null && pwd)"
-_sp_prefix="$(cd "$(dirname $(dirname $_sp_share_dir))" > /dev/null && pwd)"
+if [ "$_sp_shell" = zsh ]; then
+    _sp_share_dir="${_sp_source_file:A:h}"
+    _sp_prefix="${_sp_share_dir:h:h}"
+else
+    _sp_share_dir="$(cd "$(dirname $_sp_source_file)" > /dev/null && pwd)"
+    _sp_prefix="$(cd "$(dirname $(dirname $_sp_share_dir))" > /dev/null && pwd)"
+fi
 if [ -x "$_sp_prefix/bin/spack" ]; then
     export SPACK_ROOT="${_sp_prefix}"
 else
@@ -306,58 +309,89 @@ _spack_pathadd PATH "${_sp_prefix%/}/bin"
 # Check whether a function of the given name is defined
 #
 _spack_fn_exists() {
-	LANG= type $1 2>&1 | grep -q 'function'
+    LANG= type $1 2>&1 | grep -q 'function'
 }
 
-need_module="no"
-if ! _spack_fn_exists use && ! _spack_fn_exists module; then
-	need_module="yes"
-fi;
+# Define the spack shell function with some informative no-ops, so when users
+# run `which spack`, they see the path to spack and where the function is from.
+eval "spack() {
+    : this is a shell function from: $_sp_share_dir/setup-env.sh
+    : the real spack script is here: $_sp_prefix/bin/spack
+    _spack_shell_wrapper \"\$@\"
+    return \$?
+}"
 
-#
-# make available environment-modules
-#
-if [ "${need_module}" = "yes" ]; then
-    eval `spack --print-shell-vars sh,modules`
+# Export spack function so it is available in subshells (only works with bash)
+if [ "$_sp_shell" = bash ]; then
+    export -f spack
+    export -f _spack_shell_wrapper
+fi
 
-    # _sp_module_prefix is set by spack --print-sh-vars
-    if [ "${_sp_module_prefix}" != "not_installed" ]; then
-        # activate it!
-        # environment-modules@4: has a bin directory inside its prefix
-        _sp_module_bin="${_sp_module_prefix}/bin"
-        if [ ! -d "${_sp_module_bin}" ]; then
-            # environment-modules@3 has a nested bin directory
-            _sp_module_bin="${_sp_module_prefix}/Modules/bin"
-        fi
-
-        # _sp_module_bin and _sp_shell are evaluated here; the quoted
-        # eval statement and $* are deferred.
-        _sp_cmd="module() { eval \`${_sp_module_bin}/modulecmd ${_sp_shell} \$*\`; }"
-        eval "$_sp_cmd"
-        _spack_pathadd PATH "${_sp_module_bin}"
-    fi;
-else
-    eval `spack --print-shell-vars sh`
-fi;
-
-
-#
-# set module system roots
-#
-_sp_multi_pathadd() {
-    local IFS=':'
-    if [ "$_sp_shell" = zsh ]; then
-        setopt sh_word_split
+# Identify and lock the python interpreter
+for cmd in "${SPACK_PYTHON:-}" python3 python python2; do
+    if command -v > /dev/null "$cmd"; then
+        export SPACK_PYTHON="$(command -v "$cmd")"
+        break
     fi
-    for pth in $2; do
-        _spack_pathadd "$1" "${pth}/${_sp_sys_type}"
-    done
-}
-_sp_multi_pathadd MODULEPATH "$_sp_tcl_roots"
-_sp_multi_pathadd DK_NODE "$_sp_dotkit_roots"
+done
+
+if [ -z "${SPACK_SKIP_MODULES+x}" ]; then
+    need_module="no"
+    if ! _spack_fn_exists use && ! _spack_fn_exists module; then
+        need_module="yes"
+    fi;
+
+    #
+    # make available environment-modules
+    #
+    if [ "${need_module}" = "yes" ]; then
+        eval `spack --print-shell-vars sh,modules`
+
+        # _sp_module_prefix is set by spack --print-sh-vars
+        if [ "${_sp_module_prefix}" != "not_installed" ]; then
+            # activate it!
+            # environment-modules@4: has a bin directory inside its prefix
+            _sp_module_bin="${_sp_module_prefix}/bin"
+            if [ ! -d "${_sp_module_bin}" ]; then
+                # environment-modules@3 has a nested bin directory
+                _sp_module_bin="${_sp_module_prefix}/Modules/bin"
+            fi
+
+            # _sp_module_bin and _sp_shell are evaluated here; the quoted
+            # eval statement and $* are deferred.
+            _sp_cmd="module() { eval \`${_sp_module_bin}/modulecmd ${_sp_shell} \$*\`; }"
+            eval "$_sp_cmd"
+            _spack_pathadd PATH "${_sp_module_bin}"
+        fi;
+    else
+        stdout="$(command spack --print-shell-vars sh)" || return
+        eval "$stdout"
+    fi;
+
+
+    #
+    # set module system roots
+    #
+    _sp_multi_pathadd() {
+        local IFS=':'
+        if [ "$_sp_shell" = zsh ]; then
+            emulate -L sh
+        fi
+        for pth in $2; do
+            for systype in ${_sp_compatible_sys_types}; do
+                _spack_pathadd "$1" "${pth}/${systype}"
+            done
+        done
+    }
+    _sp_multi_pathadd MODULEPATH "$_sp_tcl_roots"
+fi
 
 # Add programmable tab completion for Bash
 #
-if [ "$_sp_shell" = bash ]; then
+if test "$_sp_shell" = bash || test -n "${ZSH_VERSION:-}"; then
     source $_sp_share_dir/spack-completion.bash
 fi
+
+# done: unset sentinel variable as we're no longer initializing
+unset _sp_initializing
+export _sp_initializing

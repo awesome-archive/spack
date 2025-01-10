@@ -1,127 +1,158 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
-class Tasmanian(CMakePackage):
+class Tasmanian(CMakePackage, CudaPackage, ROCmPackage):
     """The Toolkit for Adaptive Stochastic Modeling and Non-Intrusive
     ApproximatioN is a robust library for high dimensional integration and
     interpolation as well as parameter calibration."""
 
-    homepage = 'http://tasmanian.ornl.gov'
-    url      = 'https://github.com/ORNL/TASMANIAN/archive/v6.0.tar.gz'
-    git      = 'https://github.com/ORNL/TASMANIAN.git'
+    homepage = "https://ornl.github.io/TASMANIAN/stable/"
+    url = "https://github.com/ORNL/TASMANIAN/archive/v8.1.tar.gz"
+    git = "https://github.com/ORNL/TASMANIAN.git"
 
-    maintainers = ['mkstoyanov']
+    tags = ["e4s"]
+    maintainers("mkstoyanov")
 
-    version('develop', branch='master')
+    test_requires_compiler = True
 
-    version('6.0', '43dcb1d2bcb2f2c829ad046d0e91e83d')  # use for xsdk-0.4.0
-    version('5.1', '5d904029a24470a6acf4a87d3339846e')
+    version("develop", branch="master")
 
-    version('5.0', '4bf131841d786033863d271739be0f7a',
-            url='http://tasmanian.ornl.gov/documents/Tasmanian_v5.0.zip')
+    version("8.1", sha256="e870d26ebe9e5038a8bb75710e47a66f3040c5ad34d03c2fc993b984240d247b")
+    version("8.0", sha256="248c941346150bf6cfb386ba86b69bd4697f4fc93bff0e8d5f57e555614fd534")
+    version("7.9", sha256="decba62e6bbccf1bc26c6e773a8d4fd51d7f3e3e534ddd386ec41300694ce5cc")
+    version("7.7", sha256="85fb3a7b302ea21a3b700712767a59a623d9ab93da03308fa47d4413654c3878")
 
-    variant('xsdkflags', default=False,
-            description='enable XSDK defaults for Tasmanian')
+    # when adding a new version, deprecate an old one, this gives us 3 - 4 years of support
+    version(
+        "7.5",
+        sha256="d621bd36dced4db86ef638693ba89b336762e7a3d7fedb3b5bcefb03390712b3",
+        deprecated=True,
+    )
 
-    variant('openmp', default=True,
-            description='add OpenMP support to Tasmanian')
-    # tested with OpenMP 3.1 (clang4) through 4.0-4.5 (gcc 5 - 8)
+    depends_on("cxx", type="build")  # generated
+    depends_on("fortran", type="build")  # generated
 
-    variant('blas', default=False,
-            description='add BLAS support to Tasmanian')
+    variant("xsdkflags", default=False, description="enable XSDK defaults for Tasmanian")
 
-    variant('mpi', default=False,
-            description='add MPI support to Tasmanian')
+    variant("openmp", default=False, description="add OpenMP support to Tasmanian")
 
-    variant('cuda', default=False,
-            description='add CUDA support to Tasmanian')
+    variant("blas", default=False, description="add BLAS support to Tasmanian")
 
-    variant('magma', default=False,
-            description='add UTK MAGMA support to Tasmanian')
+    variant("mpi", default=False, description="add MPI support to Tasmanian")
 
-    variant('python', default=False,
-            description='add Python binding for Tasmanian')
+    variant("cuda", default=False, description="add CUDA support to Tasmanian")
 
-    variant('fortran', default=False,
-            description='add Fortran 90/95 interface to Tasmanian')
+    variant("rocm", default=False, description="add ROCm support to Tasmanian")
 
-    variant('build_type', default='Release',
-            description='CMake build type',
-            values=('Debug', 'Release'))
+    variant("magma", default=False, description="add UTK MAGMA support to Tasmanian")
 
-    depends_on('cmake@3.5.1:', type='build')
+    variant("python", default=False, description="add Python binding for Tasmanian")
 
-    depends_on('python@2.7:', when='+python', type=('build', 'run'))
-    depends_on('py-numpy', when='+python', type=('build', 'run'))
+    variant("fortran", default=False, description="add Fortran 2003 interface to Tasmanian")
 
-    extends('python', when='+python', type=('build', 'run'))
+    variant(
+        "build_type",
+        default="Release",
+        description="CMake build type",
+        values=("Debug", "Release"),
+    )
 
-    depends_on('mpi', when="+mpi", type=('build', 'run'))  # openmpi 2 and 3 tested
+    depends_on("cmake@3.10:", type=("build", "run"), when="@7.0:")
+    depends_on("cmake@3.22:", type=("build", "run"), when="@8.0:")
 
-    depends_on('blas', when="+blas", type=('build', 'run'))  # openblas 0.2.18 or newer
+    depends_on("python@3.0:", when="+python", type=("build", "run"))
+    depends_on("py-numpy", when="+python", type=("build", "run"))
 
-    depends_on('cuda@8.0.61:', when='+cuda', type=('build', 'run'))
-    depends_on('cuda@8.0.61:', when='+magma', type=('build', 'run'))
+    extends("python", when="+python", type=("build", "run"))
 
-    depends_on('magma@2.4.0:', when='+magma', type=('build', 'run'))
+    depends_on("mpi", when="+mpi", type=("build", "run"))  # openmpi 2 and 3 tested
 
-    conflicts('-cuda', when='+magma')  # currently MAGMA only works with CUDA
+    depends_on("blas", when="+blas", type=("build", "run"))  # openblas 0.2.18 or newer
+    depends_on("lapack", when="+blas @7.1:", type=("build", "run"))  # lapack used since 7.1
 
-    # old versions
-    conflicts('+magma', when='@:5.1')  # magma does not work prior to 6.0
-    conflicts('+mpi', when='@:5.1')    # MPI is broken prior to 6.0
-    conflicts('+xsdkflags', when='@:5.1')  # 6.0 is the first version included in xSDK
+    depends_on("cuda@10.0:", when="+cuda", type=("build", "run"))
+    depends_on("cuda@10.0:", when="+magma", type=("build", "run"))
+
+    depends_on("hip@5.0:", when="+rocm", type=("build", "run"))
+    depends_on("rocblas@5.0:", when="+rocm", type=("build", "run"))
+    depends_on("rocsparse@5.0:", when="+rocm", type=("build", "run"))
+    depends_on("rocsolver@5.0:", when="+rocm", type=("build", "run"))
+
+    depends_on("magma@2.5.0:", when="+magma @7.0:", type=("build", "run"))
+
+    # https://github.com/spack/spack/issues/39536#issuecomment-1685161942
+    conflicts("^cuda@12", when="@:7.9 +cuda")
+
+    conflicts("+magma", when="~cuda~rocm")  # currently MAGMA only works with CUDA
+    conflicts("+cuda", when="+rocm")  # can pick CUDA or ROCm, not both
+
+    # patching a bug in the interpretation of the C++ standard
+    patch("tas80_clang17.patch", when="@8.0")
+
+    def setup_build_environment(self, env):
+        # needed for the hipcc compiler
+        if "+rocm" in self.spec:
+            env.set("CXX", self.spec["hip"].hipcc)
 
     def cmake_args(self):
         spec = self.spec
 
-        if '+xsdkflags' in spec:
-            args = [
-                '-DUSE_XSDK_DEFAULTS:BOOL=ON',
-                '-DXSDK_ENABLE_PYTHON:BOOL={0}'.format(
-                    'ON' if '+python' in spec else 'OFF'),
-                '-DTasmanian_ENABLE_MPI:BOOL={0}'.format(
-                    'ON' if '+mpi' in spec else 'OFF'),
-                '-DXSDK_ENABLE_OPENMP:BOOL={0}'.format(
-                    'ON' if '+openmp' in spec else 'OFF'),
-                '-DTPL_ENABLE_BLAS:BOOL={0}'.format(
-                    'ON' if '+blas' in spec else 'OFF'),
-                '-DXSDK_ENABLE_CUDA:BOOL={0}'.format(
-                    'ON' if '+cuda' in spec else 'OFF'),
-                '-DTPL_ENABLE_MAGMA:BOOL={0}'.format(
-                    'ON' if '+magma' in spec else 'OFF'),
-                '-DXSDK_ENABLE_FORTRAN:BOOL={0}'.format(
-                    'ON' if '+fortran' in spec else 'OFF'), ]
-        else:
-            args = [
-                '-DTasmanian_ENABLE_OPENMP:BOOL={0}'.format(
-                    'ON' if '+openmp' in spec else 'OFF'),
-                '-DTasmanian_ENABLE_BLAS:BOOL={0}'.format(
-                    'ON' if '+blas' in spec else 'OFF'),
-                '-DTasmanian_ENABLE_PYTHON:BOOL={0}'.format(
-                    'ON' if '+python' in spec else 'OFF'),
-                '-DTasmanian_ENABLE_MPI:BOOL={0}'.format(
-                    'ON' if '+mpi' in spec else 'OFF'),
-                '-DTasmanian_ENABLE_CUDA:BOOL={0}'.format(
-                    'ON' if '+cuda' in spec else 'OFF'),
-                '-DTasmanian_ENABLE_MAGMA:BOOL={0}'.format(
-                    'ON' if '+magma' in spec else 'OFF'),
-                '-DTasmanian_ENABLE_FORTRAN:BOOL={0}'.format(
-                    'ON' if '+fortran' in spec else 'OFF'), ]
+        args = [
+            self.define_from_variant("Tasmanian_ENABLE_OPENMP", "openmp"),
+            self.define_from_variant("Tasmanian_ENABLE_BLAS", "blas"),
+            self.define_from_variant("Tasmanian_ENABLE_PYTHON", "python"),
+            self.define_from_variant("Tasmanian_ENABLE_MPI", "mpi"),
+            self.define_from_variant("Tasmanian_ENABLE_CUDA", "cuda"),
+            self.define_from_variant("Tasmanian_ENABLE_HIP", "rocm"),
+            self.define_from_variant("Tasmanian_ENABLE_MAGMA", "magma"),
+            self.define_from_variant("Tasmanian_ENABLE_FORTRAN", "fortran"),
+        ]
 
-        if spec.satisfies('+python'):
-            args.append('-DPYTHON_EXECUTABLE:FILEPATH={0}'.format(
-                self.spec['python'].command.path))
-
-        # _CUBLAS and _CUDA were separate options prior to 6.0
-        # skipping _CUBLAS leads to peformance regression
-        if spec.satisfies('@:5.1'):
-            args.append('-DTasmanian_ENABLE_CUBLAS={0}'.format(
-                        'ON' if '+cuda' in spec else 'OFF'))
+        if spec.satisfies("+blas"):
+            args.append("-DBLAS_LIBRARIES={0}".format(spec["blas"].libs.joined(";")))
+            args.append("-DLAPACK_LIBRARIES={0}".format(spec["lapack"].libs.joined(";")))
 
         return args
+
+    @run_after("install")
+    def setup_smoke_test(self):
+        install_tree(
+            self.prefix.share.Tasmanian.testing, join_path(install_test_root(self), "testing")
+        )
+
+    def test_make_test(self):
+        """build and run make(test)"""
+        # using the tests copied from <prefix>/share/Tasmanian/testing
+        cmake_dir = self.test_suite.current_test_cache_dir.testing
+
+        options = [cmake_dir]
+        if "+rocm" in self.spec:
+            options.append(f"-Dhip_DIR={self.spec['hip'].prefix.lib.cmake.hip}")
+            options.append(
+                f"-DAMDDeviceLibs_DIR={self.spec['llvm-amdgpu'].prefix.lib.cmake.AMDDeviceLibs}"
+            )
+            options.append(f"-Damd_comgr_DIR={self.spec['comgr'].prefix.lib.cmake.amd_comgr}")
+            options.append(
+                "-Dhsa-runtime64_DIR="
+                + join_path(self.spec["hsa-rocr-dev"].prefix.lib.cmake, "hsa-runtime64")
+            )
+            options.append(f"-DHSA_HEADER={self.spec['hsa-rocr-dev'].prefix.include}")
+            options.append(f"-DCMAKE_INCLUDE_PATH={self.spec['hsa-rocr-dev'].prefix.include.hsa}")
+            options.append(f"-Drocblas_DIR={self.spec['rocblas'].prefix.lib.cmake.rocblas}")
+            options.append(f"-Drocsparse_DIR={self.spec['rocsparse'].prefix.lib.cmake.rocsparse}")
+            options.append(f"-Drocsolver_DIR={self.spec['rocsolver'].prefix.lib.cmake.rocsolver}")
+
+        if "+mpi" in self.spec:
+            options.append("-DMPI_HOME=" + self.spec["mpi"].prefix)
+
+        cmake = which(self.spec["cmake"].prefix.bin.cmake)
+        cmake(*options)
+
+        make = which("make")
+        make()
+
+        make("test")

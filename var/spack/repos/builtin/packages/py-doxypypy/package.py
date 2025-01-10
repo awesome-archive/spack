@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyDoxypypy(PythonPackage):
@@ -13,8 +12,10 @@ class PyDoxypypy(PythonPackage):
     """
 
     homepage = "https://github.com/Feneric/doxypypy"
-    url      = "https://pypi.io/packages/source/d/doxypypy/doxypypy-0.8.8.6.tar.gz"
+    pypi = "doxypypy/doxypypy-0.8.8.6.tar.gz"
 
-    version('0.8.8.6', '6b3fe4eff5d459400071b626333fe15f')
+    license("GPL-2.0-only")
 
-    depends_on('py-setuptools', type='build')
+    version("0.8.8.6", sha256="627571455c537eb91d6998d95b32efc3c53562b2dbadafcb17e49593e0dae01b")
+
+    depends_on("py-setuptools", type="build")

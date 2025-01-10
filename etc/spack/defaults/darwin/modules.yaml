@@ -15,9 +15,7 @@
 # -------------------------------------------------------------------------
 modules:
   prefix_inspections:
-    lib:
-      - DYLD_LIBRARY_PATH
+    ./lib:
       - DYLD_FALLBACK_LIBRARY_PATH
-    lib64:
-      - DYLD_LIBRARY_PATH
+    ./lib64:
       - DYLD_FALLBACK_LIBRARY_PATH

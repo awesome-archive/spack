@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Libnrm(AutotoolsPackage):
@@ -12,12 +11,20 @@ class Libnrm(AutotoolsPackage):
 
     homepage = "https://xgitlab.cels.anl.gov/argo/libnrm"
     url = "https://www.mcs.anl.gov/research/projects/argo/downloads/libnrm-0.1.0.tar.gz"
-    version('0.1.0', '9261a55e58fd6350d9382dd09001cfd4')
 
-    depends_on('m4', type='build')
-    depends_on('autoconf', type='build')
-    depends_on('automake', type='build')
-    depends_on('libtool', type='build')
+    license("BSD-3-Clause")
 
-    depends_on('zeromq')
-    depends_on('mpich')
+    version("0.1.0", sha256="f849ada384025fa41251acc2a43aa335e0cb1b9cd1c8ab8b9d1808a036ae551e")
+
+    depends_on("c", type="build")  # generated
+
+    tags = ["e4s"]
+
+    depends_on("m4", type="build")
+    depends_on("autoconf", type="build")
+    depends_on("automake", type="build")
+    depends_on("libtool", type="build")
+    depends_on("pkgconfig", type="build")
+
+    depends_on("libzmq")
+    depends_on("mpi")

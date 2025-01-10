@@ -1,143 +1,239 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
-import sys
 import os
+import sys
+
+from spack.package import *
 
 
 class Nwchem(Package):
     """High-performance computational chemistry software"""
 
-    homepage = "http://www.nwchem-sw.org"
-    url      = "http://www.nwchem-sw.org/images/Nwchem-6.6.revision27746-src.2015-10-20.tar.gz"
+    homepage = "https://nwchemgit.github.io"
+    url = "https://github.com/nwchemgit/nwchem/releases/download/v7.2.0-release/nwchem-7.2.0-release.revision-d0d141fd-srconly.2023-03-10.tar.bz2"
 
-    tags = ['ecp', 'ecp-apps']
+    tags = ["ecp", "ecp-apps"]
 
-    version('6.8.1', '6eccddc6db11886aa6f152626efc600c',
-            url='https://github.com/nwchemgit/nwchem/releases/download/6.8.1-release/nwchem-6.8.1-release.revision-v6.8-133-ge032219-srconly.2018-06-14.tar.bz2')
-    version('6.8', '50b18116319f4c15d1cb7eaa1b433006',
-            url='https://github.com/nwchemgit/nwchem/archive/v6.8-release.tar.gz')
-    version('6.6', 'c581001c004ea5e5dfacb783385825e3',
-            url='http://www.nwchem-sw.org/images/Nwchem-6.6.revision27746-src.2015-10-20.tar.gz')
+    maintainers("jeffhammond")
 
-    depends_on('blas')
-    depends_on('lapack')
-    depends_on('mpi')
-    depends_on('scalapack')
+    version(
+        "7.2.3",
+        sha256="8cb4ec065215bc0316d8e01f67f1674a572f7d0f565c52e4a327975c04ddb6eb",
+        url="https://github.com/nwchemgit/nwchem/releases/download/v7.2.3-release/nwchem-7.2.3-release.revision-d690e065-srconly.2024-08-27.tar.bz2",
+    )
 
-    depends_on('python@2.7:2.8', type=('build', 'link', 'run'))
+    version(
+        "7.2.2",
+        sha256="6b68e9c12eec38c09d92472bdd1ff130b93c1b5e1f65e4702aa7ee36c80e4af7",
+        url="https://github.com/nwchemgit/nwchem/releases/download/v7.2.2-release/nwchem-7.2.2-release.revision-74936fb9-srconly.2023-11-03.tar.bz2",
+    )
+    version(
+        "7.2.0",
+        sha256="28ea70947e77886337c84e6fae3bdf88f25f0acfdeaf95e722615779c19f7a7e",
+        url="https://github.com/nwchemgit/nwchem/releases/download/v7.2.0-release/nwchem-7.2.0-release.revision-d0d141fd-srconly.2023-03-10.tar.bz2",
+    )
+    version(
+        "7.0.2",
+        sha256="9bf913b811b97c8ed51bc5a02bf1c8e18456d0719c0a82b2e71223a596d945a7",
+        url="https://github.com/nwchemgit/nwchem/releases/download/v7.0.2-release/nwchem-7.0.2-release.revision-b9985dfa-srconly.2020-10-12.tar.bz2",
+    )
 
-    # first hash is sha256 of the patch (required for URL patches),
-    # second is sha256 for the archive.
-    # patches for 6.6-27746:
-    urls_for_patches = {
-        '@6.6': [
-            ('http://www.nwchem-sw.org/images/Tddft_mxvec20.patch.gz',    'ae04d4754c25fc324329dab085d4cc64148c94118ee702a7e14fce6152b4a0c5', 'cdfa8a5ae7d6ee09999407573b171beb91e37e1558a3bfb2d651982a85f0bc8f'),
-            ('http://www.nwchem-sw.org/images/Tools_lib64.patch.gz',      'ef2eadef89c055c4651ea807079577bd90e1bc99ef6c89f112f1f0e7560ec9b4', '76b8d3e1b77829b683234c8307fde55bc9249b87410914b605a76586c8f32dae'),
-            ('http://www.nwchem-sw.org/images/Config_libs66.patch.gz',    '56f9c4bab362d82fb30d97564469e77819985a38e15ccaf04f647402c1ee248e', 'aa17f03cbb22ad7d883e799e0fddad1b5957f5f30b09f14a1a2caeeb9663cc07'),
-            ('http://www.nwchem-sw.org/images/Cosmo_meminit.patch.gz',    'f05f09ca235ad222fe47d880bfd05a1b88d0148b990ca8c7437fa231924be04b', '569c5ee528f3922ee60ca831eb20ec6591633a36f80efa76cbbe41cabeb9b624'),
-            ('http://www.nwchem-sw.org/images/Sym_abelian.patch.gz',      'e3470fb5786ab30bf2eda3bb4acc1e4c48fb5e640a09554abecf7d22b315c8fd', 'aa693e645a98dbafbb990e26145d65b100d6075254933f36326cf00bac3c29e0'),
-            ('http://www.nwchem-sw.org/images/Xccvs98.patch.gz',          '75540e0436c12e193ed0b644cff41f5036d78c101f14141846083f03ad157afa', '1c0b0f1293e3b9b05e9e51e7d5b99977ccf1edb4b072872c8316452f6cea6f13'),
-            ('http://www.nwchem-sw.org/images/Dplot_tolrho.patch.gz',     '8c30f92730d15f923ec8a623e3b311291eb2ba8b9d5a9884716db69a18d14f24', '2ebb1a5575c44eef4139da91f0e1e60057b2eccdba7f57a8fb577e840c326cbb'),
-            ('http://www.nwchem-sw.org/images/Driver_smalleig.patch.gz',  'a040df6f1d807402ce552ba6d35c9610d5efea7a9d6342bbfbf03c8d380a4058', 'dd65bfbae6b472b94c8ee81d74f6c3ece37c8fc8766ff7a3551d8005d44815b8'),
-            ('http://www.nwchem-sw.org/images/Ga_argv.patch.gz',          '6fcd3920978ab95083483d5ed538cd9a6f2a80c2cafa0c5c7450fa5621f0a314', '8a78cb2af14314b92be9d241b801e9b9fed5527b9cb47a083134c7becdfa7cf1'),
-            ('http://www.nwchem-sw.org/images/Raman_displ.patch.gz',      'ca4312cd3ed1ceacdc3a7d258bb05b7824c393bf44f44c28a789ebeb29a8dba4', '6a16f0f589a5cbb8d316f68bd2e6a0d46cd47f1c699a4b256a3973130061f6c3'),
-            ('http://www.nwchem-sw.org/images/Ga_defs.patch.gz',          'f8ac827fbc11f7d2a9d8ec840c6f79d4759ef782bd4d291f2e88ec81b1b230aa', 'c6f1a48338d196e1db22bcfc6087e2b2e6eea50a34d3a2b2d3e90cccf43742a9'),
-            ('http://www.nwchem-sw.org/images/Zgesvd.patch.gz',           'c333a94ceb2c35a490f24b007485ac6e334e153b03cfc1d093b6037221a03517', '4af592c047dc3e0bc4962376ae2c6ca868eb7a0b40a347ed9b88e887016ad9ed'),
-            ('http://www.nwchem-sw.org/images/Cosmo_dftprint.patch.gz',   '449d59983dc68c23b34e6581370b2fb3d5ea425b05c3182f0973e5b0e1a62651', 'd3b73431a68d6733eb7b669d471e18a83e03fa8e40c48e536fe8edecd99250ff'),
-            ('http://www.nwchem-sw.org/images/Txs_gcc6.patch.gz',         '1dab87f23b210e941c765f7dd7cc2bed06d292a2621419dede73f10ba1ca1bcd', '139692215718cd7414896470c0cc8b7817a73ece1e4ca93bf752cf1081a195af'),
-            ('http://www.nwchem-sw.org/images/Gcc6_optfix.patch.gz',      '8f8a5f8246bc1e42ef0137049acab4448a2e560339f44308703589adf753c148', '15cff43ab0509e0b0e83c49890032a848d6b7116bd6c8e5678e6c933f2d051ab'),
-            ('http://www.nwchem-sw.org/images/Util_gnumakefile.patch.gz', '173e17206a9099c3512b87e3f42441f5b089db82be1d2b306fe2a0070e5c8fad', '5dd82b9bd55583152295c999a0e4d72dd9d5c6ab7aa91117c2aae57a95a14ba1'),
-            ('http://www.nwchem-sw.org/images/Util_getppn.patch.gz',      'c4a23592fdcfb1fb6b65bc6c1906ac36f9966eec4899c4329bc8ce12015d2495', '8be418e1f8750778a31056f1fdf2a693fa4a12ea86a531f1ddf6f3620421027e'),
-            ('http://www.nwchem-sw.org/images/Gcc6_macs_optfix.patch.gz', 'ff33d5f1ccd33385ffbe6ce7a18ec1506d55652be6e7434dc8065af64c879aaa', 'fade16098a1f54983040cdeb807e4e310425d7f66358807554e08392685a7164'),
-            ('http://www.nwchem-sw.org/images/Notdir_fc.patch.gz',        '54c722fa807671d6bf1a056586f0923593319d09c654338e7dd461dcd29ff118', 'a6a233951eb254d8aff5b243ca648def21fa491807a66c442f59c437f040ee69')
-        ]
-    }
-    # Iterate over patches
-    for __condition, __urls in urls_for_patches.items():
-        for __url, __sha256, __archive_sha256 in __urls:
-            patch(__url, when=__condition, level=0, sha256=__sha256, archive_sha256=__archive_sha256)
+    resource(
+        name="dftd3.tgz",
+        url="https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/dftd3.tgz",
+        destination="",
+        placement="dft-d3",
+        sha256="d97cf9758f61aa81fd85425448fbf4a6e8ce07c12e9236739831a3af32880f59",
+        expand=False,
+    )
+
+    variant("openmp", default=False, description="Enables OpenMP support")
+    variant("f90allocatable", default=False, description="Use F90 allocatable instead of MA")
+    variant(
+        "armci",
+        values=("mpi-ts", "mpi-pr", "armcimpi", "mpi3", "openib", "ofi"),
+        default="mpi-ts",
+        description="ARMCI runtime",
+    )
+    variant(
+        "extratce",
+        default=False,
+        description="Enables rarely-used TCE features (CCSDTQ, CCSDTLR, EACCSD, IPCCSD, MRCC)",
+    )
+    variant("tcecuda", default=False, description="Enable TCE CCSD(T) CUDA support")
+    variant("fftw3", default=False, description="Link against the FFTW library")
+    variant("libxc", default=False, description="Support additional functionals via libxc")
+    variant(
+        "elpa", default=False, description="Enable optimised diagonalisation routines from ELPA"
+    )
+
+    # This patch is for the modification of the build system (e.g. compiler flags) and
+    # Fortran syntax to enable the compilation with Fujitsu compilers. The modification
+    # will be merged to the next release of NWChem (see https://github.com/nwchemgit/nwchem/issues/347
+    # for more detail.
+    patch("fj.patch", when="@7.0.2 %fj")
+    # This patch is for linking the FFTW library in NWChem.
+    # It applys only to the 7.2.0 source code.
+    # will be merged to the next release of NWChem (see https://github.com/nwchemgit/nwchem/issues/792
+    # for more detail.
+    # This patch is the combination of the following commits
+    # https://github.com/nwchemgit/nwchem/commit/b4ec4ade1af434bc80470d6874aebf6fdcd12489
+    # https://github.com/nwchemgit/nwchem/commit/376f86f96eb982e83f10514e9dcd994564f973b4
+    # https://github.com/nwchemgit/nwchem/commit/c89fc9d1eca6689bce12564a63fdea95d962a123
+    # Prior versions of NWChem, including 7.0.2, were not able to link with FFTW
+    patch("fftw_splans.patch", when="@7.2.0:7.2.3 +fftw3")
+
+    depends_on("c", type="build")
+    depends_on("cxx", type="build")
+    depends_on("fortran", type="build")
+
+    depends_on("blas")
+    depends_on("lapack")
+    depends_on("mpi")
+    depends_on("cuda", when="+tcecuda")
+    depends_on("armcimpi", when="armci=armcimpi")
+    depends_on("libfabric", when="armci=ofi")
+    depends_on("rdma-core", when="armci=openib")
+    depends_on("scalapack")
+    depends_on("fftw-api@3", when="+fftw3")
+    depends_on("libxc", when="+libxc")
+    depends_on("elpa", when="+elpa")
+    depends_on("python@:3.9", type=("build", "link", "run"), when="@:7.0.2")
+    depends_on("python@3", type=("build", "link", "run"), when="@7.2.0:")
+
+    depends_on("gmake", type="build")
+    # for the dftd3 resource (bash is also required, not listed here)
+    depends_on("tar", type="build")
+    depends_on("patch", type="build")
 
     def install(self, spec, prefix):
-        scalapack = spec['scalapack'].libs
-        lapack = spec['lapack'].libs
-        blas = spec['blas'].libs
-        # see http://www.nwchem-sw.org/index.php/Compiling_NWChem
+        # move the dft-d3/dftd3.tgz resource
+        os.rename("dft-d3/dftd3.tgz", "src/nwpw/nwpwlib/nwpwxc/dftd3.tgz")
+
+        scalapack = spec["scalapack"].libs
+        lapack = spec["lapack"].libs
+        blas = spec["blas"].libs
+        fftw = spec["fftw-api:double,float"].libs if self.spec.satisfies("+fftw3") else ""
+        # see https://nwchemgit.github.io/Compiling-NWChem.html
         args = []
-        args.extend([
-            'NWCHEM_TOP=%s' % self.stage.source_path,
-            # NWCHEM is picky about FC and CC. They should NOT be full path.
-            # see http://www.nwchem-sw.org/index.php/Special:AWCforum/sp/id7524
-            'CC=%s' % os.path.basename(spack_cc),
-            'FC=%s' % os.path.basename(spack_fc),
-            'USE_MPI=y',
-            'MPI_LOC=%s' % spec['mpi'].prefix,
-            'USE_PYTHONCONFIG=y',
-            'PYTHONVERSION=%s' % spec['python'].version.up_to(2),
-            'PYTHONHOME=%s' % spec['python'].home,
-            'BLASOPT=%s' % ((lapack + blas).ld_flags),
-            'BLAS_LIB=%s' % blas.ld_flags,
-            'LAPACK_LIB=%s' % lapack.ld_flags,
-            'USE_SCALAPACK=y',
-            'SCALAPACK=%s' % scalapack.ld_flags,
-            'NWCHEM_MODULES=all python',
-            'NWCHEM_LONG_PATHS=Y'  # by default NWCHEM_TOP is 64 char max
-        ])
+        args.extend(
+            [
+                f"NWCHEM_TOP={self.stage.source_path}",
+                # NWCHEM is picky about FC and CC. They should NOT be full path.
+                # see https://nwchemgit.github.io/Special_AWCforum/sp/id7524
+                f"CC={os.path.basename(spack_cc)}",
+                f"FC={os.path.basename(spack_fc)}",
+                "USE_MPI=y",
+                "USE_MPIF=y",
+                "PYTHONVERSION={}".format(spec["python"].version.up_to(2)),
+                f"BLASOPT={(lapack + blas).ld_flags}",
+                f"LAPACK_LIB={lapack.ld_flags}",
+                f"SCALAPACK_LIB={scalapack.ld_flags}",
+                "USE_NOIO=Y",  # skip I/O algorithms
+                "V=1",  # verbose build
+            ]
+        )
+        if self.spec.satisfies("@7.2.0:"):
+            args.extend(["NWCHEM_MODULES=all python gwmol"])
+            args.extend(["USE_HWOPT=n"])
+        else:
+            args.extend(["NWCHEM_MODULES=all python"])
+            # archspec flags are injected through the compiler wrapper
+            filter_file("(-mtune=native|-mcpu=native|-xHost)", "", "src/config/makefile.h")
 
         # TODO: query if blas/lapack/scalapack uses 64bit Ints
         # A flag to distinguish between 32bit and 64bit integers in linear
         # algebra (Blas, Lapack, Scalapack)
-        use_32_bit_lin_alg = True
+        use_32_bit_lin_alg = True if "~ilp64" in self.spec["blas"] else False
 
         if use_32_bit_lin_alg:
-            args.extend([
-                'USE_64TO32=y',
-                'BLAS_SIZE=4',
-                'LAPACK_SIZE=4',
-                'SCALAPACK_SIZE=4'
-            ])
+            args.extend(["USE_64TO32=y", "BLAS_SIZE=4", "SCALAPACK_SIZE=4", "USE_MPIF4=y"])
         else:
-            args.extend([
-                'BLAS_SIZE=8',
-                'LAPACK_SIZE=8'
-                'SCALAPACK_SIZE=8'
-            ])
+            args.extend(["BLAS_SIZE=8", "SCALAPACK_SIZE=8"])
 
-        if sys.platform == 'darwin':
-            target = 'MACX64'
-            args.extend([
-                'CFLAGS_FORGA=-DMPICH_NO_ATTR_TYPE_TAGS'
-            ])
+        if sys.platform == "darwin":
+            target = "MACX64"
+            args.extend(["CFLAGS_FORGA=-DMPICH_NO_ATTR_TYPE_TAGS"])
         else:
-            target = 'LINUX64'
+            target = "LINUX64"
 
-        args.extend(['NWCHEM_TARGET=%s' % target])
+        args.extend([f"NWCHEM_TARGET={target}"])
 
-        with working_dir('src'):
-            make('nwchem_config', *args)
+        # These optional components of TCE are rarely used and in some cases
+        # increase the compilation time significantly (CCSDTLR and CCSDTQ).
+        if spec.satisfies("+extratce"):
+            args.extend(["MRCC_METHODS=y"])
+            args.extend(["IPCCSD=y"])
+            args.extend(["EACCSD=y"])
+            args.extend(["CCSDTLR=y"])
+            args.extend(["CCSDTQ=y"])
+
+        if spec.satisfies("+tcecuda"):
+            args.extend(["TCE_CUDA=y"])
+            args.extend(["CUDA_INCLUDE=-I{0}".format(self.spec["cuda"].headers.directories[0])])
+            # args.extend(["CUDA_LIBS={0}".format(self.spec["cuda"].libs)])
+            args.extend(["CUDA_LIBS=-L{0} -lcudart".format(self.spec["cuda"].libs.directories[0])])
+
+        if spec.satisfies("+openmp"):
+            args.extend(["USE_OPENMP=y"])
+
+        if spec.satisfies("+f90allocatable"):
+            args.extend(["USE_F90_ALLOCATABLE=1"])
+
+        if self.spec.variants["armci"].value == "armcimpi":
+            armcimpi = spec["armci"]
+            args.extend(["ARMCI_NETWORK=ARMCI"])
+            args.extend([f"EXTERNAL_ARMCI_PATH={armcimpi.prefix}"])
+        elif self.spec.variants["armci"].value == "mpi-pr":
+            args.extend(["ARMCI_NETWORK=MPI-PR"])
+        elif self.spec.variants["armci"].value == "mpi-ts":
+            args.extend(["ARMCI_NETWORK=MPI-TS"])
+        elif self.spec.variants["armci"].value == "mpi3":
+            args.extend(["ARMCI_NETWORK=MPI3"])
+        elif self.spec.variants["armci"].value == "openib":
+            args.extend(["ARMCI_NETWORK=OPENIB"])
+        elif self.spec.variants["armci"].value == "ofi":
+            args.extend(["ARMCI_NETWORK=OFI"])
+
+        if spec.satisfies("+fftw3"):
+            args.extend(["USE_FFTW3=y"])
+            args.extend([f"LIBFFTW3={fftw.ld_flags}"])
+            args.extend(["FFTW3_INCLUDE={0}".format(spec["fftw-api"].prefix.include)])
+
+        if spec.satisfies("+libxc"):
+            args.extend(["LIBXC_LIB={0}".format(spec["libxc"].libs.ld_flags)])
+            args.extend(["LIBXC_INCLUDE={0}".format(spec["libxc"].prefix.include)])
+
+        if spec.satisfies("+elpa"):
+            elpa = spec["elpa"]
+            args.extend([f"ELPA={elpa.libs.ld_flags} -I{elpa.prefix.include}"])
             if use_32_bit_lin_alg:
-                make('64_to_32', *args)
+                args.extend(["ELPA_SIZE=4"])
+            else:
+                args.extend(["ELPA_SIZE=8"])
+
+        with working_dir("src"):
+            make("nwchem_config", *args)
+            if use_32_bit_lin_alg:
+                make("64_to_32", *args)
             make(*args)
 
             #  need to install by hand. Follow Ubuntu:
-            #  http://packages.ubuntu.com/trusty/all/nwchem-data/filelist
-            #  http://packages.ubuntu.com/trusty/amd64/nwchem/filelist
-            share_path = join_path(prefix, 'share', 'nwchem')
+            #  https://packages.ubuntu.com/trusty/all/nwchem-data/filelist
+            #  https://packages.ubuntu.com/trusty/amd64/nwchem/filelist
+            share_path = join_path(prefix, "share", "nwchem")
             mkdirp(prefix.bin)
 
-            install_tree('data', share_path)
-            install_tree(join_path('basis', 'libraries'),
-                         join_path(share_path, 'libraries'))
-            install_tree(join_path('nwpw', 'libraryps'),
-                         join_path(share_path, 'libraryps'))
+            install_tree("data", share_path)
+            install_tree(join_path("basis", "libraries"), join_path(share_path, "libraries"))
+            install_tree(join_path("basis", "libraries.bse"), join_path(share_path, "libraries"))
+            install_tree(join_path("nwpw", "libraryps"), join_path(share_path, "libraryps"))
 
-            b_path = join_path(self.stage.source_path, 'bin',
-                               target, 'nwchem')
-            chmod = which('chmod')
-            chmod('+x', b_path)
+            b_path = join_path(self.stage.source_path, "bin", target, "nwchem")
+            chmod = which("chmod")
+            chmod("+x", b_path)
             install(b_path, prefix.bin)
 
             # Finally, make user's life easier by creating a .nwchemrc file
@@ -153,7 +249,13 @@ class Nwchem(Package):
    spce    {data}/solvents/spce.rst
    charmm_s {data}/charmm_s/
    charmm_x {data}/charmm_x/
-""".format(data=share_path)
-            with open(".nwchemrc", 'w') as f:
+""".format(
+                data=share_path
+            )
+            with open(".nwchemrc", "w") as f:
                 f.write(nwchemrc)
             install(".nwchemrc", share_path)
+
+    def setup_run_environment(self, env):
+        env.set("NWCHEM_BASIS_LIBRARY", join_path(self.prefix, "share/nwchem/libraries/"))
+        env.set("NWCHEM_NWPW_LIBRARY", join_path(self.prefix, "share/nwchem/libraryps/"))

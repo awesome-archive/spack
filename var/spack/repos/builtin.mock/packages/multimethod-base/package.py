@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class MultimethodBase(Package):
@@ -14,8 +13,8 @@ class MultimethodBase(Package):
 
     """
 
-    homepage = 'http://www.example.com/'
-    url      = 'http://www.example.com/example-1.0.tar.gz'
+    homepage = "http://www.example.com/"
+    url = "http://www.example.com/example-1.0.tar.gz"
 
     def base_method(self):
         return "base_method"

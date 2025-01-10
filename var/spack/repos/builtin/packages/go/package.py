@@ -1,11 +1,13 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 import os
-import llnl.util.tty as tty
-from spack import *
+import re
+
+from llnl.util import tty
+
+from spack.package import *
 
 # - vanilla CentOS 7, and possibly other systems, fail a test:
 #   TestCloneNEWUSERAndRemapRootDisableSetgroups
@@ -22,91 +24,100 @@ from spack import *
 # - on CentOS 7 systems (and possibly others) you need to have the
 #   glibc package installed or various static cgo tests fail.
 #
-# - When building on a *large* machine (144 cores, 1.5TB RAM) I need
-#   to run `ulimit -u 8192` to bump up the max number of user processes.
-#   Failure to do so results in an explosion in one of the tests and an
-#   epic stack trace....
 
 
 class Go(Package):
     """The golang compiler and build environment"""
-    homepage = "https://golang.org"
-    url = 'https://dl.google.com/go/go1.12.6.src.tar.gz'
+
+    homepage = "https://go.dev"
+    url = "https://go.dev/dl/go1.20.2.src.tar.gz"
+    git = "https://go.googlesource.com/go.git"
 
     extendable = True
+    executables = ["^go$"]
 
-    version('1.12.6', sha256='c96c5ccc7455638ae1a8b7498a030fe653731c8391c5f8e79590bce72f92b4ca')
-    version('1.12.5', sha256='2aa5f088cbb332e73fc3def546800616b38d3bfe6b8713b8a6404060f22503e8')
-    version('1.11.11', sha256='1fff7c33ef2522e6dfaf6ab96ec4c2a8b76d018aae6fc88ce2bd40f2202d0f8c')
-    version('1.11.10', sha256='df27e96a9d1d362c46ecd975f1faa56b8c300f5c529074e9ea79bdd885493c1b')
-    version('1.11.5', 'bc1ef02bb1668835db1390a2e478dcbccb5dd16911691af9d75184bbe5aa943e')
-    version('1.11.4', '4cfd42720a6b1e79a8024895fa6607b69972e8e32446df76d6ce79801bbadb15')
-    version('1.11.2', '042fba357210816160341f1002440550e952eb12678f7c9e7e9d389437942550')
-    version('1.11.1', '558f8c169ae215e25b81421596e8de7572bd3ba824b79add22fba6e284db1117')
-    version('1.11',   'afc1e12f5fe49a471e3aae7d906c73e9d5b1fdd36d52d72652dde8f6250152fb')
-    version('1.10.3', '567b1cc66c9704d1c019c50bef946272e911ec6baf244310f87f4e678be155f2')
-    version('1.10.2', '6264609c6b9cd8ed8e02ca84605d727ce1898d74efa79841660b2e3e985a98bd')
-    version('1.10.1', '589449ff6c3ccbff1d391d4e7ab5bb5d5643a5a41a04c99315e55c16bbf73ddc')
-    version('1.9.5',  'f1c2bb7f32bbd8fa7a19cc1608e0d06582df32ff5f0340967d83fb0017c49fbc')
-    version('1.9.2',  '44105c865a1a810464df79233a05a568')
-    version('1.9.1',  '27bce1ffb05f4f6bd90d90081e5d4169')
-    version('1.9',    'da2d44ea384076efec43ee1f8b7d45d2')
-    version('1.8.3',  '64e9380e07bba907e26a00cf5fcbe77e')
-    version('1.8.1',  '409dd21e7347dd1ea9efe64a700073cc')
-    version('1.8',    '7743960c968760437b6e39093cfe6f67')
-    version('1.7.5',  '506de2d870409e9003e1440bcfeb3a65')
-    version('1.7.4',  '49c1076428a5d3b5ad7ac65233fcca2f')
-    version('1.6.4',  'b023240be707b34059d2c114d3465c92')
+    maintainers("alecbcs")
 
-    provides('golang')
+    license("BSD-3-Clause")
 
-    depends_on('git', type=('build', 'link', 'run'))
-    # TODO: Make non-c self-hosting compilers feasible without backflips
-    # should be a dep on external go compiler
-    depends_on('go-bootstrap', type='build')
+    version("1.23.4", sha256="ad345ac421e90814293a9699cca19dd5238251c3f687980bbcae28495b263531")
+    version("1.23.3", sha256="8d6a77332487557c6afa2421131b50f83db4ae3c579c3bc72e670ee1f6968599")
+    version("1.23.2", sha256="36930162a93df417d90bd22c6e14daff4705baac2b02418edda671cdfa9cd07f")
+    version("1.23.1", sha256="6ee44e298379d146a5e5aa6b1c5b5d5f5d0a3365eabdd70741e6e21340ec3b0d")
+    version("1.22.8", sha256="df12c23ebf19dea0f4bf46a22cbeda4a3eca6f474f318390ce774974278440b8")
+    version("1.22.7", sha256="66432d87d85e0cfac3edffe637d5930fc4ddf5793313fe11e4a0f333023c879f")
+    version("1.22.6", sha256="9e48d99d519882579917d8189c17e98c373ce25abaebb98772e2927088992a51")
+    version("1.22.4", sha256="fed720678e728a7ca30ba8d1ded1caafe27d16028fab0232b8ba8e22008fb784")
 
-    # https://github.com/golang/go/issues/17545
-    patch('time_test.patch', when='@1.6.4:1.7.4')
+    # https://nvd.nist.gov/vuln/detail/CVE-2024-24790
+    # https://nvd.nist.gov/vuln/detail/CVE-2024-24789
+    version(
+        "1.22.2",
+        sha256="374ea82b289ec738e968267cac59c7d5ff180f9492250254784b2044e90df5a9",
+        deprecated=True,
+    )
+    version(
+        "1.22.1",
+        sha256="79c9b91d7f109515a25fc3ecdaad125d67e6bdb54f6d4d98580f46799caea321",
+        deprecated=True,
+    )
+    version(
+        "1.22.0",
+        sha256="4d196c3d41a0d6c1dfc64d04e3cc1f608b0c436bd87b7060ce3e23234e1f4d5c",
+        deprecated=True,
+    )
+    version(
+        "1.21.6",
+        sha256="124926a62e45f78daabbaedb9c011d97633186a33c238ffc1e25320c02046248",
+        deprecated=True,
+    )
+    version(
+        "1.21.5",
+        sha256="285cbbdf4b6e6e62ed58f370f3f6d8c30825d6e56c5853c66d3c23bcdb09db19",
+        deprecated=True,
+    )
 
-    # https://github.com/golang/go/issues/17986
-    # The fix for this issue has been merged into the 1.8 tree.
-    patch('misc-cgo-testcshared.patch', level=0, when='@1.6.4:1.7.5')
+    provides("golang")
 
-    # NOTE: Older versions of Go attempt to download external files that have
-    # since been moved while running the test suite.  This patch modifies the
-    # test files so that these tests don't cause false failures.
-    # See: https://github.com/golang/go/issues/15694
-    @when('@:1.4.3')
-    def patch(self):
-        test_suite_file = FileFilter(join_path('src', 'run.bash'))
-        test_suite_file.filter(
-            r'^(.*)(\$GOROOT/src/cmd/api/run.go)(.*)$',
-            r'# \1\2\3',
-        )
+    depends_on("bash", type="build")
+    depends_on("sed", type="build")
+    depends_on("grep", type="build")
+    depends_on("go-or-gccgo-bootstrap", type="build")
+    depends_on("go-or-gccgo-bootstrap@1.17.13:", type="build", when="@1.20:")
+    depends_on("go-or-gccgo-bootstrap@1.20.6:", type="build", when="@1.22:")
 
-    def install(self, spec, prefix):
-        bash = which('bash')
+    phases = ["build", "install"]
 
-        wd = '.'
+    def url_for_version(self, version):
+        return f"https://go.dev/dl/go{version}.src.tar.gz"
 
-        # 1.11.5 directory structure is slightly different
-        if self.version == Version('1.11.5'):
-            wd = 'go'
+    @classmethod
+    def determine_version(cls, exe):
+        output = Executable(exe)("version", output=str, error=str)
+        match = re.search(r"go version go(\S+)", output)
+        return match.group(1) if match else None
 
-        with working_dir(join_path(wd, 'src')):
-            bash('{0}.bash'.format('all' if self.run_tests else 'make'))
-
-        install_tree(wd, prefix)
-
-    def setup_environment(self, spack_env, run_env):
-        spack_env.set('GOROOT_FINAL', self.spec.prefix)
+    def setup_build_environment(self, env):
+        env.set("GOROOT_FINAL", self.spec.prefix.go)
         # We need to set CC/CXX_FOR_TARGET, otherwise cgo will use the
         # internal Spack wrappers and fail.
-        spack_env.set('CC_FOR_TARGET', self.compiler.cc)
-        spack_env.set('CXX_FOR_TARGET', self.compiler.cxx)
+        env.set("CC_FOR_TARGET", self.compiler.cc)
+        env.set("CXX_FOR_TARGET", self.compiler.cxx)
+        env.set("GOMAXPROCS", make_jobs)
+
+    def build(self, spec, prefix):
+        # Build script depend on bash
+        bash = which("bash")
+
+        with working_dir("src"):
+            bash(f"{'all' if self.run_tests else 'make'}.bash")
+
+    def install(self, spec, prefix):
+        install_tree(".", prefix.go)
+        os.symlink(prefix.go.bin, prefix.bin)
 
     def setup_dependent_package(self, module, dependent_spec):
-        """Called before go modules' install() methods.
+        """Called before go modules' build(), install() methods.
 
         In most cases, extensions will only need to set GOPATH and use go::
 
@@ -115,21 +126,23 @@ class Go(Package):
         install_tree('bin', prefix.bin)
         """
         #  Add a go command/compiler for extensions
-        module.go = self.spec['go'].command
+        module.go = self.spec["go"].command
 
-    def setup_dependent_environment(self, spack_env, run_env, dependent_spec):
-        if os.environ.get('GOROOT', False):
-            tty.warn('GOROOT is set, this is not recommended')
+    def generate_path_components(self, dependent_spec):
+        if os.environ.get("GOROOT", False):
+            tty.warn("GOROOT is set, this is not recommended")
 
-        path_components = []
-        # Set GOPATH to include paths of dependencies
+        # Set to include paths of dependencies
+        path_components = [dependent_spec.prefix]
         for d in dependent_spec.traverse():
             if d.package.extends(self.spec):
                 path_components.append(d.prefix)
+        return ":".join(path_components)
 
+    def setup_dependent_build_environment(self, env, dependent_spec):
         # This *MUST* be first, this is where new code is installed
-        spack_env.set('GOPATH', ':'.join(path_components))
+        env.prepend_path("GOPATH", self.generate_path_components(dependent_spec))
 
-        # Allow packages to find this when using module or dotkit
-        run_env.prepend_path('GOPATH', ':'.join(
-            [dependent_spec.prefix] + path_components))
+    def setup_dependent_run_environment(self, env, dependent_spec):
+        # Allow packages to find this when using module files
+        env.prepend_path("GOPATH", self.generate_path_components(dependent_spec))

@@ -1,17 +1,19 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyPygdbmi(PythonPackage):
     """Parse gdb machine interface output with Python"""
 
     homepage = "https://github.com/cs01/pygdbmi"
-    url      = "https://pypi.io/packages/source/p/pygdbmi/pygdbmi-0.8.2.0.tar.gz"
+    pypi = "pygdbmi/pygdbmi-0.8.2.0.tar.gz"
 
-    version('0.8.2.0', 'e74d3d02fa5eef1223b5dedb13f9bbad')
+    license("MIT")
 
-    depends_on('py-setuptools', type='build')
+    version("0.9.0.3", sha256="5bdf2f072e8f2f6471f19f8dcd87d6425c5d8069d47c0a5ffe8d0eff48cb171e")
+
+    depends_on("python@3.5:", type=("build", "run"))
+    depends_on("py-setuptools", type="build")

@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Libbeato(AutotoolsPackage):
@@ -12,6 +11,10 @@ class Libbeato(AutotoolsPackage):
     from UCSC's Genome Browser Group."""
 
     homepage = "https://github.com/CRG-Barcelona/libbeato"
-    url      = "https://github.com/CRG-Barcelona/libbeato/archive/master.tar.gz"
+    git = "https://github.com/CRG-Barcelona/libbeato.git"
 
-    version('master', 'ee6f0f0f3f09c4f601fcfed3b13e7395')
+    license("GPL-3.0-or-later")
+
+    version("master", branch="master")
+
+    depends_on("c", type="build")  # generated

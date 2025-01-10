@@ -1,15 +1,16 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PerlTextUnidecode(PerlPackage):
     """plain ASCII transliterations of Unicode text"""
 
-    homepage = "http://search.cpan.org/~sburke/Text-Unidecode/lib/Text/Unidecode.pm"
-    url      = "http://search.cpan.org/CPAN/authors/id/S/SB/SBURKE/Text-Unidecode-1.30.tar.gz"
+    homepage = "https://metacpan.org/pod/Text::Unidecode"
+    url = "http://search.cpan.org/CPAN/authors/id/S/SB/SBURKE/Text-Unidecode-1.30.tar.gz"
 
-    version('1.30', '31cca8505bd74ed9d8036cdc84c808ca')
+    license("GPL-1.0-or-later OR Artistic-1.0-Perl")
+
+    version("1.30", sha256="6c24f14ddc1d20e26161c207b73ca184eed2ef57f08b5fb2ee196e6e2e88b1c6")

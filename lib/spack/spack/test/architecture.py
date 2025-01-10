@@ -1,150 +1,137 @@
-
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
+import platform
 
-""" Test checks if the architecture class is created correctly and also that
-    the functions are looking for the correct architecture name
-"""
-import itertools
-import os
-import platform as py_platform
+import pytest
 
-import spack.architecture
-from spack.spec import Spec
-from spack.platforms.cray import Cray
-from spack.platforms.linux import Linux
-from spack.platforms.bgq import Bgq
-from spack.platforms.darwin import Darwin
+import archspec.cpu
+
+import spack.concretize
+import spack.operating_systems
+import spack.platforms
+from spack.spec import ArchSpec, Spec
 
 
-def test_dict_functions_for_architecture():
-    arch = spack.architecture.Arch()
-    arch.platform = spack.architecture.platform()
-    arch.os = arch.platform.operating_system('default_os')
-    arch.target = arch.platform.target('default_target')
-
-    new_arch = spack.architecture.Arch.from_dict(arch.to_dict())
-
-    assert arch == new_arch
-    assert isinstance(arch, spack.architecture.Arch)
-    assert isinstance(arch.platform, spack.architecture.Platform)
-    assert isinstance(arch.os, spack.architecture.OperatingSystem)
-    assert isinstance(arch.target, spack.architecture.Target)
-    assert isinstance(new_arch, spack.architecture.Arch)
-    assert isinstance(new_arch.platform, spack.architecture.Platform)
-    assert isinstance(new_arch.os, spack.architecture.OperatingSystem)
-    assert isinstance(new_arch.target, spack.architecture.Target)
-
-
-def test_platform():
-    output_platform_class = spack.architecture.real_platform()
-    if os.environ.get('CRAYPE_VERSION') is not None:
-        my_platform_class = Cray()
-    elif os.path.exists('/bgsys'):
-        my_platform_class = Bgq()
-    elif 'Linux' in py_platform.system():
-        my_platform_class = Linux()
-    elif 'Darwin' in py_platform.system():
-        my_platform_class = Darwin()
-
-    assert str(output_platform_class) == str(my_platform_class)
-
-
-def test_boolness():
-    # Make sure architecture reports that it's False when nothing's set.
-    arch = spack.architecture.Arch()
-    assert not arch
-
-    # Dummy architecture parts
-    plat = spack.architecture.platform()
-    plat_os = plat.operating_system('default_os')
-    plat_target = plat.target('default_target')
-
-    # Make sure architecture reports that it's True when anything is set.
-    arch = spack.architecture.Arch()
-    arch.platform = plat
-    assert arch
-
-    arch = spack.architecture.Arch()
-    arch.os = plat_os
-    assert arch
-
-    arch = spack.architecture.Arch()
-    arch.target = plat_target
-    assert arch
-
-
-def test_user_front_end_input(config):
-    """Test when user inputs just frontend that both the frontend target
-    and frontend operating system match
+@pytest.fixture(scope="module")
+def current_host_platform():
+    """Return the platform of the current host as detected by the
+    'platform' stdlib package.
     """
-    platform = spack.architecture.platform()
-    frontend_os = str(platform.operating_system('frontend'))
-    frontend_target = str(platform.target('frontend'))
+    current_platform = None
+    if "Linux" in platform.system():
+        current_platform = spack.platforms.Linux()
+    elif "Darwin" in platform.system():
+        current_platform = spack.platforms.Darwin()
+    elif "Windows" in platform.system():
+        current_platform = spack.platforms.Windows()
+    elif "FreeBSD" in platform.system():
+        current_platform = spack.platforms.FreeBSD()
+    return current_platform
 
-    frontend_spec = Spec('libelf os=frontend target=frontend')
-    frontend_spec.concretize()
 
-    assert frontend_os == frontend_spec.architecture.os
-    assert frontend_target == frontend_spec.architecture.target
+# Valid keywords for os=xxx or target=xxx
+VALID_KEYWORDS = ["fe", "be", "frontend", "backend"]
+
+TEST_PLATFORM = spack.platforms.Test()
 
 
-def test_user_back_end_input(config):
-    """Test when user inputs backend that both the backend target and
-    backend operating system match
+@pytest.fixture(params=([str(x) for x in TEST_PLATFORM.targets] + VALID_KEYWORDS), scope="module")
+def target_str(request):
+    """All the possible strings that can be used for targets"""
+    return request.param
+
+
+@pytest.fixture(
+    params=([str(x) for x in TEST_PLATFORM.operating_sys] + VALID_KEYWORDS), scope="module"
+)
+def os_str(request):
+    """All the possible strings that can be used for operating systems"""
+    return request.param
+
+
+def test_platform(current_host_platform):
+    """Check that current host detection return the correct platform"""
+    detected_platform = spack.platforms.real_host()
+    assert str(detected_platform) == str(current_host_platform)
+
+
+def test_user_input_combination(config, target_str, os_str):
+    """Test for all the valid user input combinations that both the target and
+    the operating system match.
     """
-    platform = spack.architecture.platform()
-    backend_os = str(platform.operating_system("backend"))
-    backend_target = str(platform.target("backend"))
-
-    backend_spec = Spec("libelf os=backend target=backend")
-    backend_spec.concretize()
-
-    assert backend_os == backend_spec.architecture.os
-    assert backend_target == backend_spec.architecture.target
+    spec_str = "libelf os={} target={}".format(os_str, target_str)
+    spec = Spec(spec_str)
+    assert spec.architecture.os == str(TEST_PLATFORM.operating_system(os_str))
+    assert spec.architecture.target == TEST_PLATFORM.target(target_str)
 
 
-def test_user_defaults(config):
-    platform = spack.architecture.platform()
-    default_os = str(platform.operating_system("default_os"))
-    default_target = str(platform.target("default_target"))
-
-    default_spec = Spec("libelf")  # default is no args
-    default_spec.concretize()
-
-    assert default_os == default_spec.architecture.os
-    assert default_target == default_spec.architecture.target
-
-
-def test_user_input_combination(config):
-    platform = spack.architecture.platform()
-    os_list = list(platform.operating_sys.keys())
-    target_list = list(platform.targets.keys())
-    additional = ["fe", "be", "frontend", "backend"]
-
-    os_list.extend(additional)
-    target_list.extend(additional)
-
-    combinations = itertools.product(os_list, target_list)
-    results = []
-    for arch in combinations:
-        o, t = arch
-        spec = Spec("libelf os=%s target=%s" % (o, t))
-        spec.concretize()
-        results.append(
-            spec.architecture.os == str(platform.operating_system(o))
-        )
-        results.append(
-            spec.architecture.target == str(platform.target(t))
-        )
-    res = all(results)
-    assert res
+def test_default_os_and_target(default_mock_concretization):
+    """Test that is we don't specify `os=` or `target=` we get the default values
+    after concretization.
+    """
+    spec = default_mock_concretization("libelf")
+    assert spec.architecture.os == str(TEST_PLATFORM.operating_system("default_os"))
+    assert spec.architecture.target == TEST_PLATFORM.target("default_target")
 
 
 def test_operating_system_conversion_to_dict():
-    operating_system = spack.architecture.OperatingSystem('os', '1.0')
-    assert operating_system.to_dict() == {
-        'name': 'os', 'version': '1.0'
-    }
+    operating_system = spack.operating_systems.OperatingSystem("os", "1.0")
+    assert operating_system.to_dict() == {"name": "os", "version": "1.0"}
+
+
+@pytest.mark.parametrize(
+    "item,architecture_str",
+    [
+        # We can search the architecture string representation
+        ("linux", "linux-ubuntu18.04-haswell"),
+        ("ubuntu", "linux-ubuntu18.04-haswell"),
+        ("haswell", "linux-ubuntu18.04-haswell"),
+        # We can also search flags of the target,
+        ("avx512", "linux-ubuntu18.04-icelake"),
+    ],
+)
+def test_arch_spec_container_semantic(item, architecture_str):
+    architecture = ArchSpec(architecture_str)
+    assert item in architecture
+
+
+@pytest.mark.regression("15306")
+@pytest.mark.parametrize(
+    "architecture_tuple,constraint_tuple",
+    [
+        (("linux", "ubuntu18.04", None), ("linux", None, "x86_64")),
+        (("linux", "ubuntu18.04", None), ("linux", None, "x86_64:")),
+    ],
+)
+def test_satisfy_strict_constraint_when_not_concrete(architecture_tuple, constraint_tuple):
+    architecture = ArchSpec(architecture_tuple)
+    constraint = ArchSpec(constraint_tuple)
+    assert not architecture.satisfies(constraint)
+
+
+@pytest.mark.parametrize(
+    "root_target_range,dep_target_range,result",
+    [
+        ("x86_64:nocona", "x86_64:core2", "nocona"),  # pref not in intersection
+        ("x86_64:core2", "x86_64:nocona", "nocona"),
+        ("x86_64:haswell", "x86_64:mic_knl", "core2"),  # pref in intersection
+        ("ivybridge", "nocona:skylake", "ivybridge"),  # one side concrete
+        ("haswell:icelake", "broadwell", "broadwell"),
+        # multiple ranges in lists with multiple overlaps
+        ("x86_64:nocona,haswell:broadwell", "nocona:haswell,skylake:", "nocona"),
+        # lists with concrete targets, lists compared to ranges
+        ("x86_64,haswell", "core2:broadwell", "haswell"),
+    ],
+)
+@pytest.mark.usefixtures("mock_packages", "config")
+@pytest.mark.skipif(
+    str(archspec.cpu.host().family) != "x86_64", reason="tests are for x86_64 uarch ranges"
+)
+def test_concretize_target_ranges(root_target_range, dep_target_range, result, monkeypatch):
+    spec = Spec(
+        f"pkg-a %gcc@10 foobar=bar target={root_target_range} ^pkg-b target={dep_target_range}"
+    )
+    with spack.concretize.disable_compiler_existence_check():
+        spec.concretize()
+    assert spec.target == spec["pkg-b"].target == result

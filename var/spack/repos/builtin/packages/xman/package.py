@@ -1,23 +1,27 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
-class Xman(AutotoolsPackage):
+class Xman(AutotoolsPackage, XorgPackage):
     """xman is a graphical manual page browser using the Athena Widgets (Xaw)
     toolkit."""
 
-    homepage = "http://cgit.freedesktop.org/xorg/app/xman"
-    url      = "https://www.x.org/archive/individual/app/xman-1.1.4.tar.gz"
+    homepage = "https://gitlab.freedesktop.org/xorg/app/xman"
+    xorg_mirror_path = "app/xman-1.1.4.tar.gz"
 
-    version('1.1.4', 'f4238c79ee7227ea193898fc159f31e5')
+    license("X11")
 
-    depends_on('libxaw')
-    depends_on('libxt')
+    version("1.1.5", sha256="ff0aeb164fcb736b381bd7722c27aa0284cafb9a5d1b3940c3c3ee0af642f204")
+    version("1.1.4", sha256="72fd0d479624a31d9a7330e5fdd220b7aa144744781f8e78aa12deece86e05c7")
 
-    depends_on('xproto@7.0.17:', type='build')
-    depends_on('pkgconfig', type='build')
-    depends_on('util-macros', type='build')
+    depends_on("c", type="build")
+
+    depends_on("libxaw")
+    depends_on("libxt")
+
+    depends_on("xproto@7.0.17:", type="build")
+    depends_on("pkgconfig", type="build")
+    depends_on("util-macros", type="build")

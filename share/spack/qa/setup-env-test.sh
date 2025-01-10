@@ -1,7 +1,6 @@
 #!/bin/sh
 #
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
@@ -12,162 +11,14 @@
 # in any of these shells.
 #
 
-# ------------------------------------------------------------------------
-# Functions for color output.
-# ------------------------------------------------------------------------
+export QA_DIR=$(dirname "$0")
+export SHARE_DIR=$(cd "$QA_DIR/.." && pwd)
+export SPACK_ROOT=$(cd "$QA_DIR/../../.." && pwd)
 
-# Colors for output
-red='\033[1;31m'
-cyan='\033[1;36m'
-green='\033[1;32m'
-reset='\033[0m'
-
-echo_red() {
-    printf "${red}$*${reset}\n"
-}
-
-echo_green() {
-    printf "${green}$*${reset}\n"
-}
-
-echo_msg() {
-    printf "${cyan}$*${reset}\n"
-}
-
-# ------------------------------------------------------------------------
-# Generic functions for testing shell code.
-# ------------------------------------------------------------------------
-
-# counts of test successes and failures.
-success=0
-errors=0
-
-# Print out a header for a group of tests.
-title() {
-    echo
-    echo_msg "$@"
-    echo_msg "---------------------------------"
-}
-
-# echo FAIL in red text; increment failures
-fail() {
-    echo_red FAIL
-    errors=$((errors+1))
-}
-
-#
-# Echo SUCCESS in green; increment successes
-#
-pass() {
-    echo_green SUCCESS
-    success=$((success+1))
-}
-
-#
-# Run a command and suppress output unless it fails.
-# On failure, echo the exit code and output.
-#
-succeeds() {
-    printf "'%s' succeeds ... " "$*"
-    output=$($* 2>&1)
-    err="$?"
-
-    if [ "$err" != 0 ]; then
-        fail
-        echo_red "Command failed with error $err."
-        if [ -n "$output" ]; then
-            echo_msg "Output:"
-            echo "$output"
-        else
-            echo_msg "No output."
-        fi
-    else
-        pass
-    fi
-}
-
-#
-# Run a command and suppress output unless it succeeds.
-# If the command succeeds, echo the output.
-#
-fails() {
-    printf "'%s' fails ... " "$*"
-    output=$("$@" 2>&1)
-    err="$?"
-
-    if [ "$err" = 0 ]; then
-        fail
-        echo_red "Command failed with error $err."
-        if [ -n "$output" ]; then
-            echo_msg "Output:"
-            echo "$output"
-        else
-            echo_msg "No output."
-        fi
-    else
-        pass
-    fi
-}
-
-#
-# Ensure that a string is in the output of a command.
-# Suppresses output on success.
-# On failure, echo the exit code and output.
-#
-contains() {
-    string="$1"
-    shift
-
-    printf "'%s' output contains '$string' ... " "$*"
-    output=$("$@" 2>&1)
-    err="$?"
-
-    if [ "${output#*$string}" = "${output}" ]; then
-        fail
-        echo_red "Command exited with error $err."
-        echo_red "'$string' was not in output."
-        if [ -n "$output" ]; then
-            echo_msg "Output:"
-            echo "$output"
-        else
-            echo_msg "No output."
-        fi
-    else
-        pass
-    fi
-}
-
-#
-# Ensure that a variable is set.
-#
-is_set() {
-    printf "'%s' is set ... " "$1"
-    if eval "[ -z \${${1:-}+x} ]"; then
-        fail
-        echo_msg "$1 was not set!"
-    else
-        pass
-    fi
-}
-
-#
-# Ensure that a variable is not set.
-# Fails and prints the value of the variable if it is set.
-#
-is_not_set() {
-    printf "'%s' is not set ... " "$1"
-    if eval "[ ! -z \${${1:-}+x} ]"; then
-        fail
-        echo_msg "$1 was set:"
-        echo "    $1"
-    else
-        pass
-    fi
-}
-
+. "$QA_DIR/test-framework.sh"
 
 # -----------------------------------------------------------------------
-# Instead of invoking the module/use/dotkit commands, we print the
+# Instead of invoking the module commands, we print the
 # arguments that Spack invokes the command with, so we can check that
 # Spack passes the expected arguments in the tests below.
 #
@@ -177,14 +28,6 @@ module() {
     echo module "$@"
 }
 
-use() {
-    echo use "$@"
-}
-
-unuse() {
-    echo unuse "$@"
-}
-
 # -----------------------------------------------------------------------
 # Setup test environment and do some preliminary checks
 # -----------------------------------------------------------------------
@@ -192,77 +35,52 @@ unuse() {
 # Make sure no environment is active
 unset SPACK_ENV
 
-# fail on undefined variables
+# Fail on undefined variables
 set -u
 
 # Source setup-env.sh before tests
-.  share/spack/setup-env.sh
+. "$SHARE_DIR/setup-env.sh"
 
-# bash should expand aliases even when non-interactive
+# Bash should expand aliases even when non-interactive
 if [ -n "${BASH:-}" ]; then
     shopt -s expand_aliases
 fi
 
 title "Testing setup-env.sh with $_sp_shell"
 
-# spack command is now avaialble
+# Spack command is now available
 succeeds which spack
 
-# mock cd command (intentionally define only AFTER setup-env.sh)
+# Mock cd command (intentionally define only AFTER setup-env.sh)
 cd() {
     echo cd "$@"
 }
 
-# create a fake mock package install and store its location for later
+# Create a fake mock package install and store its location for later
 title "Setup"
 echo "Creating a mock package installation"
-spack -m install --fake a
-a_install=$(spack location -i a)
-a_module=$(spack -m module tcl find a)
-a_dotkit=$(spack -m module dotkit find a)
+spack -m install --fake shell-a
+a_install=$(spack location -i shell-a)
+a_module=$(spack -m module tcl find shell-a)
 
-b_install=$(spack location -i b)
-b_module=$(spack -m module tcl find b)
-b_dotkit=$(spack -m module dotkit find b)
+b_install=$(spack location -i shell-b)
+b_module=$(spack -m module tcl find shell-b)
 
-# create a test environment for tesitng environment commands
+# Create a test environment for testing environment commands
 echo "Creating a mock environment"
 spack env create spack_test_env
-test_env_location=$(spack location -e spack_test_env)
+spack env create spack_test_2_env
 
-# ensure that we uninstall b on exit
+# Ensure that we uninstall b on exit
 cleanup() {
-    if [ "$?" != 0 ]; then
-        trapped_error=true
-    else
-        trapped_error=false
-    fi
-
     echo "Removing test environment before exiting."
-    spack env deactivate 2>1 > /dev/null
-    spack env rm -y spack_test_env
+    spack env deactivate > /dev/null 2>&1
+    spack env rm -y spack_test_env spack_test_2_env
 
     title "Cleanup"
     echo "Removing test packages before exiting."
-    spack -m uninstall -yf b a
-
-    echo
-    echo "$success tests succeeded."
-    echo "$errors tests failed."
-
-    if [ "$trapped_error" = true ]; then
-        echo "Exited due to an error."
-    fi
-
-    if [ "$errors" = 0 ] && [ "$trapped_error" = false ]; then
-        pass
-        exit 0
-    else
-        fail
-        exit 1
-    fi
+    spack -m uninstall -yf shell-b shell-a
 }
-trap cleanup EXIT
 
 # -----------------------------------------------------------------------
 # Test all spack commands with special env support
@@ -277,7 +95,7 @@ contains "usage: spack " spack help --all
 title 'Testing `spack cd`'
 contains "usage: spack cd " spack cd -h
 contains "usage: spack cd " spack cd --help
-contains "cd $b_install" spack cd -i b
+contains "cd $b_install" spack cd -i shell-b
 
 title 'Testing `spack module`'
 contains "usage: spack module " spack -m module -h
@@ -285,44 +103,31 @@ contains "usage: spack module " spack -m module --help
 contains "usage: spack module " spack -m module
 
 title 'Testing `spack load`'
-contains "module load $b_module" spack -m load b
+contains "export PATH=$(spack -m location -i shell-b)/bin" spack -m load --sh shell-b
+succeeds spack -m load shell-b
+LIST_CONTENT=`spack -m load shell-b; spack load --list`
+contains "shell-b@" echo $LIST_CONTENT
+does_not_contain "shell-a@" echo $LIST_CONTENT
 fails spack -m load -l
-contains "module load -l --arg $b_module" spack -m load -l --arg b
-contains "module load $b_module $a_module" spack -m load -r a
-contains "module load $b_module $a_module" spack -m load --dependencies a
+# test a variable MacOS clears and one it doesn't for recursive loads
+contains "export PATH=$(spack -m location -i shell-a)/bin" spack -m load --sh shell-a
+contains "export PATH=$(spack -m location -i shell-b)/bin" spack -m load --sh shell-b
+succeeds spack -m load shell-a
 fails spack -m load d
 contains "usage: spack load " spack -m load -h
 contains "usage: spack load " spack -m load -h d
 contains "usage: spack load " spack -m load --help
 
 title 'Testing `spack unload`'
-contains "module unload $b_module" spack -m unload b
+spack -m load shell-b shell-a  # setup
+succeeds spack -m unload shell-b
+succeeds spack -m unload --all
+spack -m unload --all # cleanup
 fails spack -m unload -l
-contains "module unload -l --arg $b_module" spack -m unload -l --arg b
 fails spack -m unload d
 contains "usage: spack unload " spack -m unload -h
 contains "usage: spack unload " spack -m unload -h d
 contains "usage: spack unload " spack -m unload --help
-
-title 'Testing `spack use`'
-contains "use $b_dotkit" spack -m use b
-fails spack -m use -l
-contains "use -l --arg $b_dotkit" spack -m use -l --arg b
-contains "use $b_dotkit $a_dotkit" spack -m use -r a
-contains "use $b_dotkit $a_dotkit" spack -m use --dependencies a
-fails spack -m use d
-contains "usage: spack use " spack -m use -h
-contains "usage: spack use " spack -m use -h d
-contains "usage: spack use " spack -m use --help
-
-title 'Testing `spack unuse`'
-contains "unuse $b_dotkit" spack -m unuse b
-fails spack -m unuse -l
-contains "unuse -l --arg $b_dotkit" spack -m unuse -l --arg b
-fails spack -m unuse d
-contains "usage: spack unuse "  spack -m unuse -h
-contains "usage: spack unuse "  spack -m unuse -h d
-contains "usage: spack unuse "  spack -m unuse --help
 
 title 'Testing `spack env`'
 contains "usage: spack env " spack env -h
@@ -334,7 +139,6 @@ contains " spack env list " spack env list --help
 
 title 'Testing `spack env activate`'
 contains "No such environment:" spack env activate no_such_environment
-contains "usage: spack env activate " spack env activate
 contains "usage: spack env activate " spack env activate -h
 contains "usage: spack env activate " spack env activate --help
 
@@ -346,14 +150,17 @@ contains "usage: spack env deactivate " spack env deactivate --help
 
 title 'Testing activate and deactivate together'
 echo "Testing 'spack env activate spack_test_env'"
+succeeds spack env activate spack_test_env
 spack env activate spack_test_env
 is_set SPACK_ENV
 
 echo "Testing 'spack env deactivate'"
+succeeds spack env deactivate
 spack env deactivate
 is_not_set SPACK_ENV
 
 echo "Testing 'spack env activate spack_test_env'"
+succeeds spack env activate spack_test_env
 spack env activate spack_test_env
 is_set SPACK_ENV
 
@@ -362,6 +169,7 @@ despacktivate
 is_not_set SPACK_ENV
 
 echo "Testing 'spack env activate --prompt spack_test_env'"
+succeeds spack env activate --prompt spack_test_env
 spack env activate --prompt spack_test_env
 is_set SPACK_ENV
 is_set SPACK_OLD_PS1
@@ -370,3 +178,48 @@ echo "Testing 'despacktivate'"
 despacktivate
 is_not_set SPACK_ENV
 is_not_set SPACK_OLD_PS1
+
+echo "Testing 'spack env activate --temp'"
+succeeds spack env activate --temp
+spack env activate --temp
+is_set SPACK_ENV
+succeeds spack env deactivate
+spack env deactivate
+is_not_set SPACK_ENV
+
+echo "Testing spack env activate repeatedly"
+spack env activate spack_test_env
+succeeds spack env activate spack_test_2_env
+spack env activate spack_test_2_env
+contains "spack_test_2_env" sh -c 'echo $PATH'
+does_not_contain "spack_test_env" sh -c 'echo $PATH'
+despacktivate
+
+echo "Testing default environment"
+spack env activate
+contains "In environment default" spack env status
+despacktivate
+
+echo "Correct error exit codes for activate and deactivate"
+fails spack env activate nonexisiting_environment
+fails spack env deactivate
+
+echo "Correct error exit codes for unit-test when it fails"
+fails spack unit-test fail
+
+title "Testing config override from command line, outside of an environment"
+contains 'True' spack -c config:ccache:true python -c "import spack.config;print(spack.config.CONFIG.get('config:ccache'))"
+contains 'True' spack -C "$SHARE_DIR/qa/configuration" python -c "import spack.config;print(spack.config.CONFIG.get('config:ccache'))"
+succeeds spack -c config:ccache:true python "$SHARE_DIR/qa/config_state.py"
+succeeds spack -C "$SHARE_DIR/qa/configuration" python "$SHARE_DIR/qa/config_state.py"
+
+title "Testing config override from command line, inside an environment"
+spack env activate --temp
+spack config add "config:ccache:false"
+
+contains 'True' spack -c config:ccache:true python -c "import spack.config;print(spack.config.CONFIG.get('config:ccache'))"
+contains 'True' spack -C "$SHARE_DIR/qa/configuration" python -c "import spack.config;print(spack.config.CONFIG.get('config:ccache'))"
+succeeds spack -c config:ccache:true python "$SHARE_DIR/qa/config_state.py"
+succeeds spack -C "$SHARE_DIR/qa/configuration" python "$SHARE_DIR/qa/config_state.py"
+
+spack env deactivate

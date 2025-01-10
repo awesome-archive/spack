@@ -1,16 +1,17 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class GitTest(Package):
     """Mock package that uses git for fetching."""
+
     homepage = "http://www.git-fetch-example.com"
+    # To be set by test
+    git = None
 
-    version('git', git='to-be-filled-in-by-test')
+    submodules = True
 
-    def install(self, spec, prefix):
-        pass
+    version("git", git="to-be-filled-in-by-test")

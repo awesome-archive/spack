@@ -1,30 +1,40 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
+from typing import Optional, Set
+
+from llnl.util import tty
+
+import spack.config
 import spack.modules
-import spack.modules.common
-import llnl.util.tty as tty
-
-try:
-    enabled = spack.config.get('modules:enable')
-except KeyError:
-    tty.debug('NO MODULE WRITTEN: list of enabled module files is empty')
-    enabled = []
+import spack.spec
 
 
-def _for_each_enabled(spec, method_name):
+def _for_each_enabled(
+    spec: spack.spec.Spec, method_name: str, explicit: Optional[bool] = None
+) -> None:
     """Calls a method for each enabled module"""
-    for name in enabled:
-        generator = spack.modules.module_types[name](spec)
-        try:
-            getattr(generator, method_name)()
-        except RuntimeError as e:
-            msg = 'cannot perform the requested {0} operation on module files'
-            msg += ' [{1}]'
-            tty.warn(msg.format(method_name, str(e)))
+    set_names: Set[str] = set(spack.config.get("modules", {}).keys())
+    for name in set_names:
+        enabled = spack.config.get(f"modules:{name}:enable")
+        if not enabled:
+            tty.debug("NO MODULE WRITTEN: list of enabled module files is empty")
+            continue
+
+        for module_type in enabled:
+            generator = spack.modules.module_types[module_type](spec, name, explicit)
+            try:
+                getattr(generator, method_name)()
+            except RuntimeError as e:
+                msg = "cannot perform the requested {0} operation on module files"
+                msg += " [{1}]"
+                tty.warn(msg.format(method_name, str(e)))
 
 
-post_install = lambda spec: _for_each_enabled(spec, 'write')
-post_uninstall = lambda spec: _for_each_enabled(spec, 'remove')
+def post_install(spec, explicit: bool):
+    _for_each_enabled(spec, "write", explicit)
+
+
+def post_uninstall(spec):
+    _for_each_enabled(spec, "remove")

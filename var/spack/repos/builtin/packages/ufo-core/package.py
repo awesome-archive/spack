@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class UfoCore(CMakePackage):
@@ -13,9 +12,14 @@ class UfoCore(CMakePackage):
     development files."""
 
     homepage = "https://ufo.kit.edu"
-    url      = "https://github.com/ufo-kit/ufo-core/archive/v0.14.0.tar.gz"
+    url = "https://github.com/ufo-kit/ufo-core/archive/v0.14.0.tar.gz"
 
-    version('0.14.0', '3bd94d10d0f589953aba11821a8295f3')
+    license("LGPL-3.0-only")
 
-    depends_on('glib')
-    depends_on('json-glib')
+    version("0.16.0", sha256="ff895386e10920ec399b9951a231e517bd6cf5f70c3b527430c2c1fccff6f181")
+    version("0.14.0", sha256="3bf0d1924d6ae3f51673cc8b0b31b17873e79f1a0129a9af54b4062b1b2b3ad7")
+
+    depends_on("c", type="build")  # generated
+
+    depends_on("glib")
+    depends_on("json-glib")

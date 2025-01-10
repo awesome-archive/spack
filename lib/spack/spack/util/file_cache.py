@@ -1,18 +1,65 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
+import errno
+import math
 import os
 import shutil
+from typing import IO, Optional, Tuple
 
-from llnl.util.filesystem import mkdirp
+from llnl.util.filesystem import mkdirp, rename
 
 from spack.error import SpackError
 from spack.util.lock import Lock, ReadTransaction, WriteTransaction
 
 
-class FileCache(object):
+def _maybe_open(path: str) -> Optional[IO[str]]:
+    try:
+        return open(path, "r", encoding="utf-8")
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        return None
+
+
+class ReadContextManager:
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+    def __enter__(self) -> Optional[IO[str]]:
+        """Return a file object for the cache if it exists."""
+        self.cache_file = _maybe_open(self.path)
+        return self.cache_file
+
+    def __exit__(self, type, value, traceback):
+        if self.cache_file:
+            self.cache_file.close()
+
+
+class WriteContextManager:
+    def __init__(self, path: str) -> None:
+        self.path = path
+        self.tmp_path = f"{self.path}.tmp"
+
+    def __enter__(self) -> Tuple[Optional[IO[str]], IO[str]]:
+        """Return (old_file, new_file) file objects, where old_file is optional."""
+        self.old_file = _maybe_open(self.path)
+        self.new_file = open(self.tmp_path, "w", encoding="utf-8")
+        return self.old_file, self.new_file
+
+    def __exit__(self, type, value, traceback):
+        if self.old_file:
+            self.old_file.close()
+        self.new_file.close()
+
+        if value:
+            os.remove(self.tmp_path)
+        else:
+            rename(self.tmp_path, self.path)
+
+
+class FileCache:
     """This class manages cached data in the filesystem.
 
     - Cache files are fetched and stored by unique keys.  Keys can be relative
@@ -60,13 +107,12 @@ class FileCache(object):
         keyfile = os.path.basename(key)
         keydir = os.path.dirname(key)
 
-        return os.path.join(self.root, keydir, '.' + keyfile + '.lock')
+        return os.path.join(self.root, keydir, "." + keyfile + ".lock")
 
     def _get_lock(self, key):
         """Create a lock for a key, if necessary, and return a lock object."""
         if key not in self._locks:
-            self._locks[key] = Lock(self._lock_path(key),
-                                    default_timeout=self.lock_timeout)
+            self._locks[key] = Lock(self._lock_path(key), default_timeout=self.lock_timeout)
         return self._locks[key]
 
     def init_entry(self, key):
@@ -81,7 +127,7 @@ class FileCache(object):
             if not os.path.isfile(cache_path):
                 raise CacheError("Cache file is not a file: %s" % cache_path)
 
-            if not os.access(cache_path, os.R_OK | os.W_OK):
+            if not os.access(cache_path, os.R_OK):
                 raise CacheError("Cannot access cache file: %s" % cache_path)
         else:
             # if the file is hierarchical, make parent directories
@@ -106,8 +152,8 @@ class FileCache(object):
                cache_file.read()
 
         """
-        return ReadTransaction(
-            self._get_lock(key), lambda: open(self.cache_path(key)))
+        path = self.cache_path(key)
+        return ReadTransaction(self._get_lock(key), acquire=lambda: ReadContextManager(path))
 
     def write_transaction(self, key):
         """Get a write transaction on a file cache item.
@@ -117,54 +163,36 @@ class FileCache(object):
         moves the file into place on top of the old file atomically.
 
         """
-        class WriteContextManager(object):
+        path = self.cache_path(key)
+        if os.path.exists(path) and not os.access(path, os.W_OK):
+            raise CacheError(f"Insufficient permissions to write to file cache at {path}")
 
-            def __enter__(cm):  # noqa
-                cm.orig_filename = self.cache_path(key)
-                cm.orig_file = None
-                if os.path.exists(cm.orig_filename):
-                    cm.orig_file = open(cm.orig_filename, 'r')
+        return WriteTransaction(self._get_lock(key), acquire=lambda: WriteContextManager(path))
 
-                cm.tmp_filename = self.cache_path(key) + '.tmp'
-                cm.tmp_file = open(cm.tmp_filename, 'w')
-
-                return cm.orig_file, cm.tmp_file
-
-            def __exit__(cm, type, value, traceback):  # noqa
-                if cm.orig_file:
-                    cm.orig_file.close()
-                cm.tmp_file.close()
-
-                if value:
-                    # remove tmp on exception & raise it
-                    shutil.rmtree(cm.tmp_filename, True)
-
-                else:
-                    os.rename(cm.tmp_filename, cm.orig_filename)
-
-        return WriteTransaction(self._get_lock(key), WriteContextManager)
-
-    def mtime(self, key):
-        """Return modification time of cache file, or 0 if it does not exist.
+    def mtime(self, key) -> float:
+        """Return modification time of cache file, or -inf if it does not exist.
 
         Time is in units returned by os.stat in the mtime field, which is
         platform-dependent.
 
         """
         if not self.init_entry(key):
-            return 0
+            return -math.inf
         else:
-            sinfo = os.stat(self.cache_path(key))
-            return sinfo.st_mtime
+            return os.stat(self.cache_path(key)).st_mtime
 
     def remove(self, key):
+        file = self.cache_path(key)
         lock = self._get_lock(key)
         try:
             lock.acquire_write()
-            os.unlink(self.cache_path(key))
+            os.unlink(file)
+        except OSError as e:
+            # File not found is OK, so remove is idempotent.
+            if e.errno != errno.ENOENT:
+                raise
         finally:
             lock.release_write()
-        os.unlink(self._lock_path(key))
 
 
 class CacheError(SpackError):

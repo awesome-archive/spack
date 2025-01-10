@@ -1,10 +1,10 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
 import os.path
+
+from spack.package import *
 
 
 class Qorts(RPackage):
@@ -16,24 +16,23 @@ class Qorts(RPackage):
     technology."""
 
     homepage = "https://github.com/hartleys/QoRTs"
-    url      = "https://github.com/hartleys/QoRTs/releases/download/v1.2.42/QoRTs_1.2.42.tar.gz"
+    url = "https://github.com/hartleys/QoRTs/releases/download/v1.2.42/QoRTs_1.2.42.tar.gz"
 
-    version('1.2.42', '7d46162327b0da70bfe483fe2f2b7829')
+    version("1.2.42", sha256="c9f73ce8d5aac1036d13c50475458a61a24cbe5c0baf7ac65b87a7118c51ec08")
 
-    depends_on('java', type='run')
+    depends_on("java", type="run")
 
     resource(
-        name='QoRTs.jar',
-        url='https://github.com/hartleys/QoRTs/releases/download/v1.2.42/QoRTs.jar',
-        md5='918df4291538218c12caa3ab98c535e9',
-        placement='jarfile',
-        expand=False
+        name="QoRTs.jar",
+        url="https://github.com/hartleys/QoRTs/releases/download/v1.2.42/QoRTs.jar",
+        sha256="e808d2e05c67ee41eee605b7821aafa7ae894288ebb01d8b1bfb136970c801ce",
+        placement="jarfile",
+        expand=False,
     )
 
-    @run_after('install')
+    @run_after("install")
     def install_jar(self):
-        install_tree(join_path(self.stage.source_path, 'jarfile'),
-                     self.prefix.bin)
+        install_tree(join_path(self.stage.source_path, "jarfile"), self.prefix.bin)
 
         # Set up a helper script to call java on the jar file,
         # explicitly codes the path for java and the jar file.
@@ -44,8 +43,7 @@ class Qorts(RPackage):
 
         # Munge the helper script to explicitly point to java and the
         # jar file.
-        java = self.spec['java'].prefix.bin.java
-        kwargs = {'backup': False}
-        filter_file('^java', java, script, **kwargs)
-        filter_file('QoRTs.jar', join_path(self.prefix.bin, 'QoRTs.jar'),
-                    script, **kwargs)
+        java = self.spec["java"].prefix.bin.java
+        kwargs = {"backup": False}
+        filter_file("^java", java, script, **kwargs)
+        filter_file("QoRTs.jar", join_path(self.prefix.bin, "QoRTs.jar"), script, **kwargs)

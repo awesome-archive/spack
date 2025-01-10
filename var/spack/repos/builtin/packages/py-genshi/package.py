@@ -1,18 +1,24 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class PyGenshi(PythonPackage):
     """Python toolkit for generation of output for the web"""
-    homepage = "https://genshi.edgewall.org/"
-    url      = "http://ftp.edgewall.com/pub/genshi/Genshi-0.7.tar.gz"
 
-    version('0.7', '54e64dd69da3ec961f86e686e0848a82')
-    version('0.6.1', '372c368c8931110b0a521fa6091742d7')
-    version('0.6', '604e8b23b4697655d36a69c2d8ef7187')
+    pypi = "Genshi/Genshi-0.7.7.tar.gz"
 
-    depends_on("py-setuptools", type='build')
+    license("BSD-3-Clause")
+
+    version("0.7.7", sha256="c100520862cd69085d10ee1a87e91289e7f59f6b3d9bd622bf58b2804e6b9aab")
+
+    depends_on("c", type="build")  # generated
+
+    depends_on("py-setuptools", type=("build", "run"))
+    depends_on("py-six", type=("build", "run", "test"))
+
+    def test_testsuite(self):
+        """run unittest suite"""
+        python("-m", "unittest", "-v", "genshi.tests.suite")

@@ -1,15 +1,16 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
-class Fontcacheproto(AutotoolsPackage):
+class Fontcacheproto(AutotoolsPackage, XorgPackage):
     """X.org FontcacheProto protocol headers."""
 
-    homepage = "http://cgit.freedesktop.org/xorg/proto/fontcacheproto"
-    url      = "https://www.x.org/archive/individual/proto/fontcacheproto-0.1.3.tar.gz"
+    homepage = "https://cgit.freedesktop.org/xorg/proto/fontcacheproto"
+    xorg_mirror_path = "proto/fontcacheproto-0.1.3.tar.gz"
 
-    version('0.1.3', '5a91ab914ffbfbc856e6fcde52e6f3e3')
+    license("BSD-2-Clause")
+
+    version("0.1.3", sha256="759b4863b55a25bfc8f977d8ed969da0b99b3c823f33c674d6da5825f9df9a79")

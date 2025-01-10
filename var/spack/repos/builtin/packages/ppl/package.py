@@ -1,9 +1,8 @@
-# Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright Spack Project Developers. See COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack import *
+from spack.package import *
 
 
 class Ppl(Package):
@@ -20,15 +19,20 @@ class Ppl(Package):
     solver, and primitives for termination analysis via the automatic
     synthesis of linear ranking functions."""
 
-    homepage = "http://bugseng.com/products/ppl/"
-    url      = "http://bugseng.com/products/ppl/download/ftp/releases/1.1/ppl-1.1.tar.gz"
+    homepage = "https://bugseng.com/products/ppl/"
+    url = "http://bugseng.com/products/ppl/download/ftp/releases/1.1/ppl-1.1.tar.gz"
 
-    version('1.1', '4f2422c0ef3f409707af32108deb30a7')
+    license("GPL-3.0-or-later")
+
+    version("1.2", sha256="6bc36dd4a87abc429d8f9c00c53e334e5041a9b0857cfc00dbad6ef14294aac8")
+    version("1.1", sha256="46f073c0626234f0b1a479356c0022fe5dc3c9cf10df1a246c9cde81f7cf284d")
+
+    depends_on("c", type="build")  # generated
+    depends_on("cxx", type="build")  # generated
 
     depends_on("gmp")
 
     def install(self, spec, prefix):
-        configure("--prefix=%s" % prefix,
-                  "--with-gmp=%s" % spec['gmp'].prefix)
+        configure("--prefix=%s" % prefix, "--with-gmp=%s" % spec["gmp"].prefix)
         make()
         make("install")

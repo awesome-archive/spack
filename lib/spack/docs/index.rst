@@ -1,5 +1,4 @@
-.. Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-   Spack Project Developers. See the top-level COPYRIGHT file for details.
+.. Copyright Spack Project Developers. See COPYRIGHT file for details.
 
    SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
@@ -11,10 +10,6 @@
 ===================
 Spack
 ===================
-
-.. epigraph::
-
-   `These are docs for the Spack package manager. For sphere packing, see` `pyspack <https://pyspack.readthedocs.io>`_.
 
 Spack is a package management tool designed to support multiple
 versions and configurations of software on a wide variety of platforms
@@ -39,9 +34,14 @@ package:
 
 .. code-block:: console
 
-   $ git clone https://github.com/spack/spack.git
+   $ git clone -c feature.manyFiles=true --depth=2 https://github.com/spack/spack.git
    $ cd spack/bin
    $ ./spack install libelf
+
+.. note::
+   ``-c feature.manyFiles=true`` improves git's performance on repositories with 1,000+ files.
+
+   ``--depth=2`` prunes the git history to reduce the size of the Spack installation.
 
 If you're new to spack and want to start using it, see :doc:`getting_started`,
 or refer to the full manual below.
@@ -54,9 +54,16 @@ or refer to the full manual below.
    features
    getting_started
    basic_usage
-   workflows
-   tutorial
-   known_issues
+   replace_conda_homebrew
+   frequently_asked_questions
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Links
+
+   Tutorial (spack-tutorial.rtfd.io) <https://spack-tutorial.readthedocs.io>
+   Packages (packages.spack.io) <https://packages.spack.io>
+   Binaries (binaries.spack.io) <https://cache.spack.io>
 
 .. toctree::
    :maxdepth: 2
@@ -64,16 +71,21 @@ or refer to the full manual below.
 
    configuration
    config_yaml
+   packages_yaml
    build_settings
    environments
+   containers
    mirrors
    module_file_support
    repositories
    binary_caches
+   bootstrapping
    command_index
-   package_list
    chain
    extensions
+   pipelines
+   signing
+   gpu_configuration
 
 .. toctree::
    :maxdepth: 2
@@ -83,7 +95,6 @@ or refer to the full manual below.
    packaging_guide
    build_systems
    developer_guide
-   docker_for_developers
 
 .. toctree::
    :maxdepth: 2

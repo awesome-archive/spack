@@ -1,13 +1,12 @@
-.. Copyright 2013-2019 Lawrence Livermore National Security, LLC and other
-   Spack Project Developers. See the top-level COPYRIGHT file for details.
+.. Copyright Spack Project Developers. See COPYRIGHT file for details.
 
    SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 .. _wafpackage:
 
-----------
-WafPackage
-----------
+---
+Waf
+---
 
 Like SCons, Waf is a general-purpose build system that does not rely
 on Makefiles to build software.
@@ -16,7 +15,7 @@ on Makefiles to build software.
 Phases
 ^^^^^^
 
-The ``WafPackage`` base class comes with the following phases:
+The ``WafBuilder`` and ``WafPackage`` base classes come with the following phases:
 
 #. ``configure`` - configure the project
 #. ``build`` - build the project
@@ -47,8 +46,9 @@ Each phase provides a ``<phase>`` function that runs:
 
 where ``<jobs>`` is the number of parallel jobs to build with. Each phase
 also has a ``<phase_args>`` function that can pass arguments to this call.
-All of these functions are empty except for the ``configure_args``
-function, which passes ``--prefix=/path/to/installation/prefix``.
+All of these functions are empty. The ``configure`` phase
+automatically adds  ``--prefix=/path/to/installation/prefix``, so you
+don't need to add that in the ``configure_args``.
 
 ^^^^^^^
 Testing
@@ -57,15 +57,13 @@ Testing
 ``WafPackage`` also provides ``test`` and ``installtest`` methods,
 which are run after the ``build`` and ``install`` phases, respectively.
 By default, these phases do nothing, but you can override them to
-run package-specific unit tests. For example, the
-`py-py2cairo <https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/py-py2cairo/package.py>`_
-package uses:
+run package-specific unit tests.
 
 .. code-block:: python
 
    def installtest(self):
-       with working_dir('test'):
-           pytest = which('py.test')
+       with working_dir("test"):
+           pytest = which("py.test")
            pytest()
 
 
@@ -94,7 +92,7 @@ the following dependency automatically:
 
 .. code-block:: python
 
-   depends_on('python@2.5:', type='build')
+   depends_on("python@2.5:", type="build")
 
 
 Waf only supports Python 2.5 and up.
@@ -114,7 +112,7 @@ phase, you can use:
        args = []
 
        if self.run_tests:
-           args.append('--test')
+           args.append("--test")
 
        return args
 
